@@ -39,3 +39,9 @@ Exit: the owner scans a roll of film on Linux.
 ### 6. Image quality and polish
 
 Shading correction, colour, infrared dust removal, multi-exposure, film holder handling, documentation for users.
+
+### 7. Upstream
+
+Once the unit scans again and the results are verified, contribute OpticFilm 120 support and the findings to the existing open source drivers for this chip: [pyopticfilm](https://github.com/jboneng/pyopticfilm) first (Python, already scans three GL128 OpticFilms), then SANE's `genesys` backend (`gl128.cpp`, in master since 2026-10-01). Includes the model configuration, the GL128 knowledge recovered from the vendor drivers (register field names, serial flash access), and how to handle a unit that lost its USB identity.
+
+Exit: OpticFilm 120 support merged upstream, or offered as a pull/merge request with the evidence attached.
