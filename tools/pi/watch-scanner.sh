@@ -1,11 +1,16 @@
 #!/bin/sh
 # Log every appearance and disappearance of the scanner on USB and dump its
-# descriptors once per appearance. Only reads descriptors, sends nothing to
-# the device.
+# descriptors once per appearance. If probe_readonly.py and its venv are
+# installed under ~/plustek-preservation, also run the read-only probe on
+# each appearance, followed by status polling every 20 s until the scanner
+# leaves the bus (which also shows whether host traffic delays standby).
 #
 # Usage: watch-scanner.sh [vendor:product] [log directory]
 vendor_product="${1:-05e3:0103}"
 log_directory="${2:-$HOME/scanner-log}"
+project_directory="$HOME/plustek-preservation"
+probe_script="$project_directory/probe_readonly.py"
+probe_python="$project_directory/venv/bin/python"
 mkdir -p "$log_directory"
 present=0
 while true; do
@@ -14,6 +19,9 @@ while true; do
             stamp=$(date -u +%Y%m%dT%H%M%SZ)
             echo "$stamp connected" >> "$log_directory/events.log"
             sudo lsusb -v -d "$vendor_product" > "$log_directory/descriptors-$stamp.txt" 2>&1
+            if [ -f "$probe_script" ] && [ -x "$probe_python" ]; then
+                sudo "$probe_python" "$probe_script" --watch 20 > "$log_directory/probe-$stamp.jsonl" 2>&1 &
+            fi
             present=1
         fi
     elif [ "$present" = 1 ]; then
