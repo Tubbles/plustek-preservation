@@ -26,3 +26,7 @@ Research phase. See `PLAN.md` for the roadmap and `doc/work/` for individual wor
 ## Test setup
 
 The scanner is attached to a Raspberry Pi 3 (Debian 13, aarch64) on the local network.
+
+## License
+
+GNU Affero General Public License v3.0 or later (`AGPL-3.0-or-later`), see `LICENSE`.
