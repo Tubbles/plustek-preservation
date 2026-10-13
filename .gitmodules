@@ -1,0 +1,3 @@
+[submodule "pyopticfilm"]
+	path = pyopticfilm
+	url = https://github.com/Tubbles/pyopticfilm.git

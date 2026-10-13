@@ -15,6 +15,11 @@ Host names, access details and machine specific notes live in `CLAUDE.local.md` 
 - Until the protocol is understood, only send requests whose effect is known from the vendor driver or from captures. A wrong write could move a motor against an end stop or change the firmware configuration. Reads of descriptors and documented status requests are fine.
 - The scanner drops off the bus after about 5 minutes without host activity (standby, not yet confirmed). The owner wakes it with the power button.
 
+## Driver code (submodule)
+
+- `pyopticfilm/` is a submodule pointing at the fork `Tubbles/pyopticfilm` (remote `origin`, pushes go over SSH; `upstream` is `jboneng/pyopticfilm`). Follow `pyopticfilm/CONTRIBUTING.md` there, not the conventions of this repository.
+- Work on feature branches in the submodule. Commit the updated submodule pointer here only after the submodule commits are pushed to the fork, or the pointer breaks for everyone else.
+
 ## Documentation
 
 - Facts about the hardware go in `doc/hardware/`, protocol knowledge in `doc/protocol/`, research summaries in `doc/research.md`. Each claim carries its source (URL, file and offset in a vendor binary, capture name).

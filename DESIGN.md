@@ -1,6 +1,10 @@
 # Design
 
-Nothing is decided yet. The architecture is chosen once phase 2 of `PLAN.md` shows what the scanner speaks.
+## Decided: the driver is pyopticfilm (2026-10-13)
+
+OpticFilm 120 support is built inside a fork of [pyopticfilm](https://github.com/jboneng/pyopticfilm) ([Tubbles/pyopticfilm](https://github.com/Tubbles/pyopticfilm)), included here as the `pyopticfilm/` submodule. Reasons: pyopticfilm already drives the same GL128 ASIC on three hardware-tested OpticFilm models, so the 120 needs mostly model data and identity handling, and the work can go upstream as an ordinary pull request (`PLAN.md` phase 7). Consequences: the driver is Python and follows pyopticfilm's conventions (`pyopticfilm/CONTRIBUTING.md`: model-specific constants on the model's own class, model-lock tests only for hardware-validated models, hardware sign-off before `scan_ready`). This repository keeps the research, protocol documentation, capture tools and the USB identity and flash work. A SANE backend port is a later, separate step.
+
+Branches in the submodule: `main` follows upstream; OpticFilm 120 work happens on feature branches that become upstream pull requests.
 
 ## Constraints known so far
 
@@ -10,6 +14,4 @@ Nothing is decided yet. The architecture is chosen once phase 2 of `PLAN.md` sho
 
 ## Open decisions
 
-- Implementation language.
-- Front end: SANE backend (works with existing scanning applications) versus a standalone tool (freedom to expose film specific features such as multi-exposure and the infrared channel).
-- Where image processing happens: in the driver, or in a separate post-processing stage operating on raw scans.
+- How the driver treats a unit with the Genesys default identity (`05e3:0103`): match it explicitly (only together with bcdDevice `0x0702`), or restore the Plustek identity on the unit first (`doc/work/0007-identity-and-flash.md`).

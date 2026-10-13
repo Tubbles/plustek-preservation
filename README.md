@@ -18,6 +18,7 @@ Research phase. See `PLAN.md` for the roadmap and `doc/work/` for individual wor
 | `doc/log/` | Dated decision logs |
 | `doc/work/` | Work items with status |
 | `tools/` | Helper scripts (for example the USB watcher that runs on the test Raspberry Pi) |
+| `pyopticfilm/` | Submodule: our fork of [pyopticfilm](https://github.com/jboneng/pyopticfilm), where the OpticFilm 120 driver support is built (see `DESIGN.md`) |
 | `TODO.md` | Owner's inbox of new requests |
 | `SUGGESTIONS.md` | Ideas that came up during the work |
 
