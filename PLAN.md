@@ -8,7 +8,7 @@ The owner can scan 35 mm and 120 film on Linux with the OpticFilm 120, at full q
 
 ### 1. Research
 
-Collect everything that exists: manuals, vendor drivers and applications for every OS and version, third-party support (SilverFast, VueScan), open source work on the same controller family, known failure modes. Transcribe the printed manual.
+Collect everything that exists: manuals, vendor drivers and applications for every OS and version, third-party support (SilverFast, VueScan), open source work on the same controller family, known failure modes. Write up the facts from the printed manual.
 
 Exit: `doc/research.md` answers what controller the scanner uses, which software supported it until when, and whether anyone has documented its protocol.
 
