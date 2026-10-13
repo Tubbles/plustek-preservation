@@ -22,6 +22,10 @@ From `dmesg` on the test Raspberry Pi 3 (Linux 6.18.50+rpt-rpi-v8, `dwc_otg` hos
 
 Full descriptors (`lsusb -v`) are captured automatically by `tools/pi/watch-scanner.sh` the next time the scanner enumerates.
 
+## Power
+
+The scanner runs from its own 24 V / 0.7 A adapter (owner, 2026-10-13), so it should not draw its operating power from USB. The `lsusb -v` capture will confirm this through the self-powered bit in the configuration descriptor.
+
 ## Host caveat
 
-The Pi 3 reports undervoltage continuously (`vcgencmd get_throttled` = `0x50005`: under-voltage now and since boot, throttled now and since boot; 147 "Undervoltage detected" kernel messages in the first 54 minutes of uptime). The Pi 3 feeds its USB ports from the same 5 V input, so the supply has to be ruled out before any USB failure seen on this host is blamed on the scanner.
+The Pi 3 reports undervoltage continuously (`vcgencmd get_throttled` = `0x50005`: under-voltage now and since boot, throttled now and since boot; 147 "Undervoltage detected" kernel messages in the first 54 minutes of uptime). The scanner has its own supply, so the remaining risk is on the Pi side: the SoC, the onboard USB hub (`0424:9514`) and the Wi-Fi dongle all run from the Pi's 5 V input, and the supply has to be ruled out before a USB failure seen on this host is blamed on the scanner.
