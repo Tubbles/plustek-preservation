@@ -16,9 +16,9 @@ From `dmesg` on the test Raspberry Pi 3 (Linux 6.18.50+rpt-rpi-v8, `dwc_otg` hos
 ```
 
 - Vendor `05e3` is Genesys Logic, not Plustek (`07b3`). Product `0103` is not in the `usb.ids` database. Neighbouring Genesys IDs in `usb.ids` are other film scanners: `0120` Pacific Image PrimeFilm 1800u, `0142` "Multiple Slides Scanner-3600", `0143` "Multiple Frames Film Scanner-36series", `0145` Reflecta CrystalScan 7200, `0180` "Plustek Scanner".
-- Open question: is `05e3:0103` the normal ID of a working OpticFilm 120, or a fallback the controller reports when its configuration is missing? See `doc/research.md`.
+- A working OpticFilm 120 enumerates as `07b3:1406` (Plustek) with the same bcdDevice `0x0702` (Genesys GL128). This unit reports Genesys defaults instead, so the Windows driver (which matches only `07b3:1406`) cannot bind to it. Evidence in `../research.md`.
 - No kernel driver bound to it (expected: scanners are driven from user space).
-- The device disconnected 4 min 55 s after enumerating. No host software talked to it. Not yet known whether that was the standby timer, the power button, or something else.
+- The device disconnected 4 min 55 s after enumerating, with no host software talking to it. See the standby section below.
 
 ## Descriptors (2026-10-13 20:38, after a wake from standby)
 
@@ -40,7 +40,7 @@ The bulk pair is the data path (commands and image data). A one-byte interrupt e
 
 ## Standby
 
-The owner found the power button LED orange and the logo LED off (standby, per `../manual/quick-guide.md`) at 20:38. One press woke it: orange off, blue logo LED on, and the device enumerated at once. So the 19:48 disconnect is consistent with the scanner entering standby. The timer length is being measured on this power-on.
+The owner found the power button LED orange and the logo LED off (standby, per `../manual/quick-guide.md`) at 20:38. One press woke it: orange off, blue logo LED on, and the device enumerated at once. It then left the bus again at 20:43:20, 4 min 54 s after enumerating, again with no host software talking to it. Two runs agree within a second: with no host traffic, the scanner leaves the bus about 5 minutes after waking. LED state at the moment of the drop is still to be observed (expected: orange on, blue off). Whether host traffic resets the timer is not known yet.
 
 ## Power
 

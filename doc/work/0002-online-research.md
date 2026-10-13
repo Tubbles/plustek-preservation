@@ -1,6 +1,6 @@
 # 0002 Online research and downloads
 
-Status: in progress
+Status: done
 
 Collect public knowledge about the OpticFilm 120 and download every vendor package for later analysis.
 
