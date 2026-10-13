@@ -38,9 +38,32 @@ Full dump in `lsusb-v.txt`, captured by `tools/pi/watch-scanner.sh`. Summary:
 
 The bulk pair is the data path (commands and image data). A one-byte interrupt endpoint is a typical carrier for button and sensor state (power, eject, holder inserted). Both readings are interpretations of the descriptor layout, to be confirmed against the vendor driver and captures.
 
+## Read-only probe (2026-10-13 19:46 UTC)
+
+`tools/pi/probe_readonly.py`, run by the watcher right after a wake from standby. Raw output: `probes/20261013T194628Z-readonly.jsonl`. Every request is an IN request that Plustek's driver also sends (`../protocol/of120-capture-151.md`); nothing was written.
+
+| Request | This unit | Working unit (capture, values read after the driver's writes unless noted) |
+|---|---|---|
+| Strings | language `0409`; 1 = "Genesys", 2 = "USB2.0 Scanner"; index 11 does not exist | index 11 = "Film Scanner  " |
+| `c0 0c 008a 26fe` (first request at open) | `00` | `00` (before any write) |
+| `c0 0c 008e 0020` ("link check") | `aa` | always `55` |
+| `c0 0c 008e 0000` (USB speed byte) | `00` (high speed) | `00` |
+| register `0x101` (status) | `4c` | `dc` |
+| register `0x06` | `00` | `18` |
+| register `0x31` | `bc` | `be`, `3e`, `bb` |
+| register `0x33` | `1e` | `0e` |
+| register `0x36` | `00` | `fc`, `fe` |
+| interrupt `0x83`, 200 ms | nothing | (used only during moves) |
+
+Every register read came back in the GL124/GL128 framing (value then `55`), so the ASIC's USB register interface works while the unit reports the Genesys default identity. A driver can talk to the unit as it is.
+
+Readings, all to be confirmed:
+- Register `0x06` bit 4 (PWRBIT, SANE `low.cpp` 1477 to 1483) is clear and register `0x101` bit 7 is clear, both of which mean a cold ASIC that no driver has initialised since power-up. Expected, since nothing has initialised it.
+- The link check returns `aa`, never seen in the capture, where it was only read after the driver's first writes. Whether `aa` means "not initialised" or points at the fault is open. The macOS driver has `CIOUSB::check_toggle_r` and `CIOUSB::Do_toggle_R`, which may explain it.
+
 ## Standby
 
-The owner found the power button LED orange and the logo LED off (standby, per `../manual/quick-guide.md`) at 20:38. One press woke it: orange off, blue logo LED on, and the device enumerated at once. It then left the bus again at 20:43:20, 4 min 54 s after enumerating, again with no host software talking to it. Two runs agree within a second: with no host traffic, the scanner leaves the bus about 5 minutes after waking. LED state at the moment of the drop is still to be observed (expected: orange on, blue off). Whether host traffic resets the timer is not known yet.
+The owner found the power button LED orange and the logo LED off (standby, per `../manual/quick-guide.md`) at 20:38. One press woke it: orange off, blue logo LED on, and the device enumerated at once. It then left the bus again at 20:43:20, 4 min 54 s after enumerating, again with no host software talking to it. Two runs agree within a second: with no host traffic, the scanner leaves the bus about 5 minutes after waking. LED state at the moment of the drop is still to be observed (expected: orange on, blue off). Read-only host traffic does not reset it: on the third run (woken 19:46:28 UTC) the probe polled the link check and register `0x101` every 20 s, and the unit still left the bus at 19:51:23, 4 min 55 s after waking, with the last successful read at 19:51:09. Whether a full driver initialisation changes the timer is open; the OpticFilm 120 configuration in Plustek's macOS driver has `StandbyReg` and `StandbyOffTime 15` (`../vendor-driver/macos.md`).
 
 ## Power
 

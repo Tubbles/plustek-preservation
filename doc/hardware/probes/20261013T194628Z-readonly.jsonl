@@ -1,0 +1,20 @@
+{"time": "2026-10-13T19:46:29.688+00:00", "kind": "device", "vendor_id": "05e3", "product_id": "0103", "bcd_device": "0702", "is_gl128": true, "manufacturer_index": 1, "product_index": 2, "bus": 1, "address": 8}
+{"time": "2026-10-13T19:46:29.689+00:00", "kind": "language_ids", "ids": ["0409"]}
+{"time": "2026-10-13T19:46:29.695+00:00", "kind": "string", "index": 1, "text": "Genesys"}
+{"time": "2026-10-13T19:46:29.696+00:00", "kind": "string", "index": 2, "text": "USB2.0 Scanner"}
+{"time": "2026-10-13T19:46:29.697+00:00", "kind": "string", "index": 11, "error": "[Errno None] Invalid descriptor"}
+{"time": "2026-10-13T19:46:29.698+00:00", "kind": "vendor_read", "name": "first open request (0x8a, 0x26fe)", "request": "0c", "value": "008a", "index": "26fe", "length": 1, "returned": "00"}
+{"time": "2026-10-13T19:46:29.699+00:00", "kind": "vendor_read", "name": "link check", "request": "0c", "value": "008e", "index": "0020", "length": 1, "returned": "aa"}
+{"time": "2026-10-13T19:46:29.700+00:00", "kind": "vendor_read", "name": "usb speed byte", "request": "0c", "value": "008e", "index": "0000", "length": 1, "returned": "00"}
+{"time": "2026-10-13T19:46:29.701+00:00", "kind": "vendor_read", "name": "register 0x101", "request": "04", "value": "018e", "index": "0122", "length": 2, "returned": "4c 55"}
+{"time": "2026-10-13T19:46:29.701+00:00", "kind": "vendor_read", "name": "register 0x006", "request": "04", "value": "008e", "index": "0622", "length": 2, "returned": "00 55"}
+{"time": "2026-10-13T19:46:29.702+00:00", "kind": "vendor_read", "name": "register 0x031", "request": "04", "value": "008e", "index": "3122", "length": 2, "returned": "bc 55"}
+{"time": "2026-10-13T19:46:29.703+00:00", "kind": "vendor_read", "name": "register 0x033", "request": "04", "value": "008e", "index": "3322", "length": 2, "returned": "1e 55"}
+{"time": "2026-10-13T19:46:29.704+00:00", "kind": "vendor_read", "name": "register 0x036", "request": "04", "value": "008e", "index": "3622", "length": 2, "returned": "00 55"}
+{"time": "2026-10-13T19:46:29.907+00:00", "kind": "interrupt", "endpoint": "83", "returned": null}
+{"time": "2026-10-13T19:46:29.909+00:00", "kind": "vendor_read", "name": "link check", "request": "0c", "value": "008e", "index": "0020", "length": 1, "returned": "aa"}
+{"time": "2026-10-13T19:46:29.909+00:00", "kind": "vendor_read", "name": "register 0x101", "request": "04", "value": "018e", "index": "0122", "length": 2, "returned": "4c 55"}
+{"time": "2026-10-13T19:46:49.911+00:00", "kind": "vendor_read", "name": "link check", "request": "0c", "value": "008e", "index": "0020", "length": 1, "returned": "aa"}
+{"time": "2026-10-13T19:46:49.912+00:00", "kind": "vendor_read", "name": "register 0x101", "request": "04", "value": "018e", "index": "0122", "length": 2, "returned": "4c 55"}
+{"time": "2026-10-13T19:47:09.913+00:00", "kind": "vendor_read", "name": "link check", "request": "0c", "value": "008e", "index": "0020", "length": 1, "returned": "aa"}
+{"time": "2026-10-13T19:47:09.914+00:00", "kind": "vendor_read", "name": "register 0x101", "request": "04", "value": "018e", "index": "0122", "length": 2, "returned": "4c 55"}
