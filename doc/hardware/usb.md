@@ -20,7 +20,27 @@ From `dmesg` on the test Raspberry Pi 3 (Linux 6.18.50+rpt-rpi-v8, `dwc_otg` hos
 - No kernel driver bound to it (expected: scanners are driven from user space).
 - The device disconnected 4 min 55 s after enumerating. No host software talked to it. Not yet known whether that was the standby timer, the power button, or something else.
 
-Full descriptors (`lsusb -v`) are captured automatically by `tools/pi/watch-scanner.sh` the next time the scanner enumerates.
+## Descriptors (2026-10-13 20:38, after a wake from standby)
+
+Full dump in `lsusb-v.txt`, captured by `tools/pi/watch-scanner.sh`. Summary:
+
+| Field | Value |
+|---|---|
+| Device class / subclass / protocol | 255 / 255 / 255 (vendor specific) |
+| bcdUSB | 2.00, high speed |
+| bMaxPacketSize0 | 64 |
+| Strings | manufacturer "Genesys", product "USB2.0 Scanner", no serial string |
+| Configurations | 1, self powered (`bmAttributes 0xc0`, device status `0x0001`), MaxPower 10 mA |
+| Interface 0 | 3 endpoints, class 255/255/255 |
+| EP `0x81` | bulk IN, 512 bytes |
+| EP `0x02` | bulk OUT, 512 bytes |
+| EP `0x83` | interrupt IN, 1 byte, bInterval 8 (2^(8-1) microframes = 16 ms at high speed) |
+
+The bulk pair is the data path (commands and image data). A one-byte interrupt endpoint is a typical carrier for button and sensor state (power, eject, holder inserted). Both readings are interpretations of the descriptor layout, to be confirmed against the vendor driver and captures.
+
+## Standby
+
+The owner found the power button LED orange and the logo LED off (standby, per `../manual/quick-guide.md`) at 20:38. One press woke it: orange off, blue logo LED on, and the device enumerated at once. So the 19:48 disconnect is consistent with the scanner entering standby. The timer length is being measured on this power-on.
 
 ## Power
 
