@@ -1,20 +1,22 @@
 # 0011 First motor move after the reassembly
 
-Status: todo
+Status: in progress
 
-The owner wants to test the mechanics by moving the holder carrier (`0010-mechanical-check.md`). This item is the tool and the procedure for the first motor command, built so that each run is bounded and replays only what the working unit in the issue #151 capture received (`doc/protocol/of120-capture-151.md`).
+The owner wants to test the mechanics by moving the holder carrier (`0010-mechanical-check.md`). This item is the tool and the procedure for the first host-driven motor command, built so that each run is bounded and replays only what the working unit in the issue #151 capture received (`doc/protocol/of120-moves.md`, extracted and reviewed on 2026-10-15).
 
-What the vendor does, as far as the capture shows:
-- Every move comes after the open sequence (register blast, clock set-up, AFE defaults, GPIO set-up) and is preceded by a pair of slope tables to `0x1000c000` and `0x10010000`.
-- A positioning move is `0x02 = 0x18` (MTRPWR, FASTFED), FEEDL (`0x3d` to `0x3f`) in steps, `0x0f = 0x01` to start, then either an interrupt read or polling of `0x101` until the motor stops, then `0x02 = 0x08`.
-- The shortest positioning move in the capture is 97 steps (the third move of each cycle). Moves out use `0x09 = 0x08` (BACKSCAN) with `0x02 = 0x30`.
-- Position is counted from the home sensor (`HOMESNR`, `0x101` bit 3) and the holder sensor (`0x31` bit 2, `LoaderReadyReg`); the frame positions and `FilmLoaderOrigin 0,980` are constants in the driver configuration, and the flash holds only the infrared record. No stored position calibration was found anywhere, so a carrier moved by hand needs no recalibration *(inference: as far as the engine and the flash show)*.
+What the vendor does, as the capture shows:
+- Every move comes after the open sequence (register blast, clock set-up, AFE defaults, GPIO set-up) and is preceded by a pair of identical 512-byte slope tables to `0x1000c000` and `0x10010000` (`doc/protocol/tables/`).
+- A move is `0x02 = 0x18` (MTRPWR, FASTFED), FEEDL (`0x3d` to `0x3f`) in steps, `0x0f = 0x01` to start, then polling of `0x101` until MOTORENB (bit 0) clears. Moves 1 and 2 of each cycle wait on the interrupt endpoint instead and are cut short by an event (inference), after which the driver writes `0x02 = 0x08`. After moves 3 and 4 it leaves `0x02 = 0x58`, so motor power stays on.
+- The shortest move that runs to its programmed length is move 3: 97 steps, table `slope-6353.hex`, `0x33` bit 5 set by read-modify-write before and cleared after. It starts with the carrier off the home sensor.
+- The only direction bit the driver uses is BACKSCAN (`0x09` bit 3): set for the two moves toward the slot, both of which start on the home sensor. MTRREV is never set. Without BACKSCAN the carrier moves away from the home sensor, the direction that draws the holder in (inference).
+- Position is counted from the home sensor (`HOMESNR`, `0x101` bit 3) and the holder sensor (`0x31` bit 2, `LoaderReadyReg`); the frame positions and `FilmLoaderOrigin 0,980` are constants in the driver configuration, and the flash holds only the infrared record. No stored position calibration was found anywhere, so a carrier moved by hand needs no recalibration (inference: as far as the engine and the flash show).
 
 Steps:
 - [ ] Read-only first: at the next wake, log `0x101` (home sensor) and `0x31` (holder sensor) and compare with the values before the opening (`0x4c` and `0xbc`, `doc/hardware/usb.md`). The firmware moves the motor briefly at every power-on (owner, 2026-10-15), so the mechanism has already run since the reassembly; the owner thinks the carrier now sits near the middle of its travel. If `HOMESNR` is clear after a power-on, the power-on move is not a homing or the sensor no longer trips, and that has to be understood before any move.
-- [ ] Extract from the capture the exact bytes of the open sequence and of the 97-step move (registers, both slope tables, the `0x101` values polled until the motor stopped) into `doc/protocol/`.
-- [ ] Build `tools/pi/first_move.py`: open sequence as captured, one move of a chosen length (default the capture's 97 steps) in a chosen direction, bounded by a poll limit, `0x02 = 0x08` afterwards, every register logged. Refuse any other write. Unit tests, review by a second agent.
+- [x] Extract from the capture the exact bytes of the moves: `doc/protocol/of120-moves.md` and `doc/protocol/tables/`, reviewed against the raw capture (2026-10-15).
+- [ ] Build `tools/pi/vendor_open.py`: the open sequence (capture frames 15 to 138) replayed verbatim, then a watch of the bus for the standby question. Unit tests, review by a second agent. Its first run is also the standby experiment (`doc/hardware/usb.md`, "Standby").
+- [ ] Build the move tool on top of it: the register state of move 3 from the document, the `0x33` read-modify-write, the 19-register block with a chosen FEEDL (default 97), the table pair, the start, polling with a limit until MOTORENB clears, then the vendor's writes after the move and `0x02 = 0x08` as after moves 1 and 2 so that motor power is off at the end. Every request logged. Refuse any other write. Unit tests, review by a second agent.
 - [ ] Decide the direction with the owner from where the carrier sits now, then one run with the owner at the power switch and an explicit go-ahead. Listen for a stall.
-- [ ] If the short move runs clean: a homing run (`0x02 = 0x30`, AGOHOME) with a poll limit, which finds the sensor, then record the outcome in `doc/hardware/board.md` and close `0010`.
+- [ ] If the short move runs clean: a homing run (`0x02 = 0x30`, AGOHOME, as in the park at the end of a pass) with a poll limit, which finds the sensor, then record the outcome in `doc/hardware/board.md` and close `0010`.
 
-Risks, for the owner's decision: a move into an end stop or a mis-seated gear stalls the stepper. Whether a stall can damage the gear train in this unit is not known. The vendor's own first move is 10158 steps blind, so the mechanism is built to take ordinary stalls, but a mis-seated gear is not an ordinary case. The shortest, slowest move the vendor uses is the least that can be sent and still move the carrier.
+Risks, for the owner's decision: a move into an end stop or a mis-seated gear stalls the stepper. Whether a stall can damage the gear train in this unit is not known. The vendor's own moves 1 and 2 run until an event stops them and the firmware moves the carrier at every power-on, so the mechanism is built for ordinary stalls and unattended moves, but a mis-seated gear is not an ordinary case. The 97-step move is the shortest the vendor sends and uses the slowest of its tables.

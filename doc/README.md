@@ -6,6 +6,7 @@
 - `hardware/eeprom-read.md`: the one attempt to read the serial EEPROM over USB, and why the USB route stops there.
 - `hardware/board.md`: the main board of the owner's unit, from photos: every chip identified, date codes, what that means for the USB identity and the board revision, and the state of the unit after reassembly.
 - `protocol/of120-capture-151.md`: annotated walkthrough of the only public USB capture of a working OpticFilm 120 (boot sequence, serial flash read, interrupt endpoint, the read-only probe set).
+- `protocol/of120-moves.md`: the carrier moves in that capture byte for byte (requests, slope tables in `protocol/tables/`, status polling and timing, the register state of the 97-step move, direction bits).
 - `protocol/serial-flash.md`: how Plustek's macOS engine reads, writes and erases the serial flash on the scanner board, and what it keeps there.
 - `protocol/usb-requests.md`: encoding of every other vendor request in the macOS engine (registers, front end, bulk transfers, buttons, reset, standby).
 - `protocol/gl128-registers.md`: register field map generated from the macOS engine's accessor methods.

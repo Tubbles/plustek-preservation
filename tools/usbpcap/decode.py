@@ -7,7 +7,7 @@ least twice in such a capture: when the host submits it and when it
 completes. The "event" field says which one a line is ("submit" or
 "complete"), and the "irp_id" field links them.
 
-Usage: decode.py <capture> [--device <address>]
+Usage: decode.py <capture> [--device <address>] [--full-data]
 
 Header layout (https://desowin.org/usbpcap/captureformat.html): a packed
 little-endian header of 27 bytes (header length, IRP id, USBD status, URB
@@ -27,6 +27,8 @@ than 64 bytes is cut to its first 64 bytes, with data_truncated and
 captured_sha256 added. data_length is the length the USBPcap header
 declares. When the capture holds fewer bytes (cut at the snapshot length),
 captured_length gives how many, and captured_sha256 covers only those.
+With --full-data, bulk and interrupt data is kept in full too, and neither
+data_truncated nor captured_sha256 is added.
 
 A file that ends in the middle of a record, or whose structure is
 inconsistent, is reported on stderr with exit status 1, after the records
@@ -364,8 +366,12 @@ def setup_fields(setup: SetupPacket) -> dict:
 
 
 def transfer_object(record: CaptureRecord, header: UsbPcapHeader,
-                    first_timestamp: Optional[float]) -> dict:
-    """Build the JSON object for one USBPcap record."""
+                    first_timestamp: Optional[float],
+                    keep_all_data: bool = False) -> dict:
+    """Build the JSON object for one USBPcap record.
+
+    keep_all_data keeps bulk and interrupt data in full, as control data is.
+    """
     setup, data, declared_length = split_record_data(header, record.payload)
     is_control = header.transfer_type == USBPCAP_TRANSFER_CONTROL
     relative_time = (None if record.timestamp is None or first_timestamp is None
@@ -393,11 +399,12 @@ def transfer_object(record: CaptureRecord, header: UsbPcapHeader,
     transfer["data_length"] = declared_length
     if len(data) != declared_length:
         transfer["captured_length"] = len(data)
-    transfer.update(data_fields(data, keep_all=is_control))
+    transfer.update(data_fields(data, keep_all=is_control or keep_all_data))
     return transfer
 
 
-def iterate_transfers(buffer: bytes, device_filter: Optional[int]) -> Iterator[dict]:
+def iterate_transfers(buffer: bytes, device_filter: Optional[int],
+                      keep_all_data: bool = False) -> Iterator[dict]:
     """Yield the JSON objects of all USBPcap records, optionally one device only."""
     first_timestamp = None
     for record in iterate_capture_records(buffer):
@@ -410,7 +417,7 @@ def iterate_transfers(buffer: bytes, device_filter: Optional[int]) -> Iterator[d
             continue
         if device_filter is not None and header.device != device_filter:
             continue
-        yield transfer_object(record, header, first_timestamp)
+        yield transfer_object(record, header, first_timestamp, keep_all_data)
 
 
 # --- command line -----------------------------------------------------------
@@ -422,6 +429,9 @@ def parse_arguments(arguments: list[str]) -> argparse.Namespace:
     parser.add_argument("capture", help="path to a .pcap or .pcapng file")
     parser.add_argument("--device", type=int, default=None,
                         help="only records of this USB device address")
+    parser.add_argument("--full-data", action="store_true",
+                        help="keep bulk and interrupt data in full instead of "
+                             "cutting it to %d bytes" % INLINE_DATA_LIMIT)
     return parser.parse_args(arguments)
 
 
@@ -437,7 +447,7 @@ def main(arguments: list[str]) -> int:
     options = parse_arguments(arguments)
     buffer = map_file(options.capture)
     try:
-        for transfer in iterate_transfers(buffer, options.device):
+        for transfer in iterate_transfers(buffer, options.device, options.full_data):
             sys.stdout.write(json.dumps(transfer) + "\n")
         sys.stdout.flush()
     except CaptureFormatError as error:

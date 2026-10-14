@@ -78,7 +78,7 @@ def pcapng_file(records, resolution_exponent):
     return pcapng_section() + pcapng_interface(resolution_exponent) + packets
 
 
-def run_main(capture):
+def run_main(capture, extra_arguments=()):
     """Run decode.main on capture bytes; return (exit code, stdout lines, stderr)."""
     with tempfile.TemporaryDirectory() as directory:
         path = os.path.join(directory, "synthetic.pcap")
@@ -86,7 +86,7 @@ def run_main(capture):
             capture_file.write(capture)
         output, errors = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
-            exit_code = decode.main([path])
+            exit_code = decode.main([path, *extra_arguments])
     return exit_code, output.getvalue().splitlines(), errors.getvalue()
 
 
@@ -196,6 +196,17 @@ class CommandLineTest(unittest.TestCase):
         lines = output.getvalue().splitlines()
         self.assertEqual(exit_code, 0)
         self.assertEqual([json.loads(line)["frame"] for line in lines], [1, 2])
+
+    def test_full_data_option_keeps_long_bulk_payload(self):
+        capture = pcap_file([(1, 0, control_write_submit()), (2, 0, bulk_in_completion())])
+        exit_code, lines, errors = run_main(capture, ["--full-data"])
+        control, bulk = [json.loads(line) for line in lines]
+        self.assertEqual((exit_code, errors), (0, ""))
+        self.assertEqual(control["data_hex"], "0b6c")
+        self.assertEqual(bulk["data_length"], 100)
+        self.assertEqual(bulk["data_hex"], BULK_PAYLOAD.hex())
+        self.assertNotIn("data_truncated", bulk)
+        self.assertNotIn("captured_sha256", bulk)
 
 
 if __name__ == "__main__":
