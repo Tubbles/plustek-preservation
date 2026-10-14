@@ -69,7 +69,7 @@ Driving the vendor's standby line does not hold it either. On the wake of 2026-1
 
 ## Power
 
-The scanner runs from its own 24 V / 0.7 A adapter (owner, 2026-10-13), so it should not draw its operating power from USB. The `lsusb -v` capture will confirm this through the self-powered bit in the configuration descriptor.
+The scanner runs from its own 24 V / 0.7 A adapter (owner, 2026-10-13), so it should not draw its operating power from USB. The motor runs briefly at power-on (owner, 2026-10-15), so the firmware moves the holder carrier on its own, before any host talks to it. Before the opening the unit reported the carrier at home after power-on (`0x101 = 0x4c`, bit 3 `HOMESNR` set, "Read-only probe"), which fits a homing move at power-on *(inference)*. The `lsusb -v` capture will confirm this through the self-powered bit in the configuration descriptor.
 
 ## Host caveat
 
