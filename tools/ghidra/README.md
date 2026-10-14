@@ -1,8 +1,8 @@
-# Ghidra scripts for the Plustek macOS engine
+# Ghidra scripts for the Plustek engines
 
-Static analysis of `PLK_A120.framework/Versions/A/ScanApi` from Plustek's macOS driver V3.1.0.0 (see `doc/vendor-driver/macos.md`). Results are in `doc/protocol/serial-flash.md`, `doc/protocol/usb-requests.md`, `doc/protocol/gl128-registers.md` and the "Device discovery and model selection" section of `doc/vendor-driver/macos.md`. Nothing here executes the vendor binary.
+Static analysis of `PLK_A120.framework/Versions/A/ScanApi` from Plustek's macOS driver V3.1.0.0 (see `doc/vendor-driver/macos.md`) and of `Scanapi_x64.dll` from the Windows drivers V5.0.2.0 and V6.0.0.0 (see `doc/vendor-driver/windows.md`, "Disassembly"). Results are in `doc/protocol/serial-flash.md`, `doc/protocol/usb-requests.md`, `doc/protocol/gl128-registers.md`, the "Device discovery and model selection" section of `doc/vendor-driver/macos.md` and the "Disassembly" section of `doc/vendor-driver/windows.md`. Nothing here executes the vendor binaries.
 
-Requirements: Ghidra 12.1.4 in `work/tools/ghidra_12.1.4_PUBLIC/` (headless launcher, default heap 2 GB) and a JDK 21; Python 3 for the two `.py` helpers. All outputs go to `work/` (untracked). Run the commands from the repository root, one at a time.
+Requirements: Ghidra 12.1.4 in `work/tools/ghidra_12.1.4_PUBLIC/` (headless launcher, default heap 2 GB) and a JDK 21; Python 3 for the `.py` helpers. All outputs go to `work/` (untracked). Run the commands from the repository root, one at a time.
 
 ## Scripts
 
@@ -13,9 +13,12 @@ Requirements: Ghidra 12.1.4 in `work/tools/ghidra_12.1.4_PUBLIC/` (headless laun
 | `DumpFunctionTable.java` | output file | address, size, qualified name and prototype of every function |
 | `FindScalars.java` | output file, hex values | every instruction with one of the values as an operand |
 | `ListCallsWithConstants.java` | output file, regex on the callee | every call to a matching function with its constant arguments |
+| `ListStringReferences.java` | output file | every defined string with each instruction that references it and the function containing that instruction |
+| `DumpReferencesToFunctions.java` | output file | every reference to every function entry: callee, reference type, source address and the function containing the source (`-` for data such as vtables) |
 | `ExtractAccessorFacts.java` | output file, comma separated class names | JSON lines with the calls, masks, shifts and shadow offsets of each register field accessor |
 | `register_fields.py` | facts file, class, optional `--diff <class>` | Markdown field table, or the differences between two classes |
 | `find_descriptor_bytes.py` | files | offsets of USB descriptor headers, VID/PID pairs and product strings |
+| `find_code_references.py` | 64-bit PE file, target addresses | for each target, `E8`/`E9` relative calls and jumps to it at any byte offset of the code sections, and every 64-bit pointer or 32-bit RVA holding it, with the section |
 
 `ExtractAccessorFacts.java` and `ListCallsWithConstants.java` read the decompiler's P-code rather than its C text, because the C output prints small constants (register numbers, offsets) as fields of the Mach-O header, which Ghidra maps at address 0.
 
@@ -55,6 +58,37 @@ python3 -I tools/ghidra/register_fields.py work/re/accessor-facts-x86_64.jsonl C
 
 python3 -I tools/ghidra/find_descriptor_bytes.py work/re/slices/ScanApi.x86_64 work/re/slices/ScanApi.arm64
 ```
+
+## Windows engine
+
+The engine comes out of the InstallShield cabinets of the driver package (`doc/vendor-driver/windows.md`). The V6.0.0.0 package is a RAR self-extractor, which `unrar x` unpacks (p7zip lacks the RAR5 method). The DLL has no symbols, so functions are traced by address and log string.
+
+```sh
+mkdir -p work/ghidra-win work/re-win
+work/build/unshield/build/src/unshield -d work/extracted/plustek-V5020-cab64 \
+  x 'work/extracted/plustek-V5020/OpticFilm 120_12L_V5.0.2.0/64bit/data1.hdr'
+
+GHIDRA=work/tools/ghidra_12.1.4_PUBLIC/support/analyzeHeadless
+ENGINE=work/extracted/plustek-V5020-cab64/DRV_U_A31_x64/Scanapi_x64.dll
+
+$GHIDRA work/ghidra-win ScanApiWin -import $ENGINE
+
+$GHIDRA work/ghidra-win ScanApiWin -process Scanapi_x64.dll -noanalysis -readOnly -scriptPath tools/ghidra \
+  -postScript DumpFunctionTable.java work/re-win/functions-x64.tsv \
+  -postScript ListStringReferences.java work/re-win/string-refs-x64.tsv \
+  -postScript DumpReferencesToFunctions.java work/re-win/references-x64.tsv \
+  -postScript DecompileMatching.java work/re-win/decomp-x64 '.'
+
+$GHIDRA work/ghidra-win ScanApiWin -process Scanapi_x64.dll -noanalysis -readOnly -scriptPath tools/ghidra \
+  -postScript ListCallsWithConstants.java work/re-win/calls-control-x64.tsv '^FUN_1800f(d300|d1a0|ec10)$' \
+  -postScript FindScalars.java work/re-win/scalars-x64.tsv 8b 8a 8c 8e 8f 7b3 1406 1440 5e3 103 26fe 30 a0 \
+    80002024 8000201c 80002014 80002028 8000202c
+
+# Back up "no caller" results (here: ChipErase, FlashSelfTest, ReadFromNVRAM, WriteIRScalingInfo).
+python3 -I tools/ghidra/find_code_references.py $ENGINE 180102650 180103e50 180061130 180030200
+```
+
+The function names in `ListCallsWithConstants.java` patterns are Ghidra's default `FUN_<address>` names of this build: `0x1800fd300` is `ControlWrite`, `0x1800fd1a0` `ControlRead`, `0x1800fec10` `MyWriteReg`. The clients (`PkWiaDrv20_A31*.dll`, `WIAA3103.dll`, `ComScan.exe`) were imported into a second project and decompiled whole with `DecompileMatching.java ... '.'` to find which table slots they call.
 
 Script names must not clash with Ghidra's bundled scripts (Ghidra already ships a `ListFunctions.java`), otherwise the headless analyser runs the bundled one.
 
