@@ -116,6 +116,8 @@ On an OpticFilm 120, one `apiCounterControl` call with action 2 and source 0, 1 
 
 `CAsic::ReadFromNVRAM` (`0x061120`) reads a Microwire-style serial EEPROM through ASIC registers: it sets `EPROMSEL`, writes `0x30` to register `0x8b`, then for each 16-bit word writes `0x80 | address` to register `0x8b` and reads the low and high byte from registers `0x8f` and `0x8e`. Nothing in the binary calls it, and `CIOUSB::FlashSelfTest` (`0x0f8410`) only returns 1 without any USB traffic.
 
+Details, the busy wait, `EPROMSEL`, the Microwire command reading and the clash with the exposure registers: `serial-eeprom.md`.
+
 ### Flash layout implied for the OpticFilm 120
 
 | Range | Content | Source |
