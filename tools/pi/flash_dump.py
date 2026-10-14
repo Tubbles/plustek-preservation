@@ -14,9 +14,10 @@ erase requests (0x8b with wIndex 0x0f, 0x10, 0x11, 0x12) are refused.
 Sequence:
 1. Refuse to start unless the file probe-disabled exists next to this
    script (it stops watch-scanner.sh from starting the probe on a wake) and
-   no probe_readonly.py process runs. Create the file before the wake and
-   start the dump after the watcher has logged the connection, so that its
-   lsusb run is over.
+   neither probe_readonly.py nor keep_awake.py runs. Create the file before
+   the wake and start the dump after the watcher has logged "probe
+   disabled" for the connection, so that its lsusb and keep_awake.py runs
+   are over.
 2. Read registers 0x31 (GPIO8, the standby line), 0x34 (GPOE8, its output
    enable, is bit 7) and 0x36 (GPOE17 to 24) and log them.
 3. SPI init and JEDEC ID. Stop unless the ID decodes to 64 KiB to 512 KiB
@@ -76,7 +77,7 @@ REFUSED_WRITE_INDICES = (DATA_INDEX, JEDEC_ID_INDEX, 0x11, 0x12)
 ALLOWED_FLASH_READS = {JEDEC_ID_INDEX: 3, DATA_INDEX: BLOCK_SIZE}
 SMALLEST_CAPACITY_CODE = 0x10
 LARGEST_CAPACITY_CODE = 0x13
-PROBE_SCRIPT_NAME = b"probe_readonly.py"
+OTHER_SCANNER_SCRIPTS = (b"probe_readonly.py", b"keep_awake.py")
 
 EXIT_GOOD = 0
 EXIT_NOT_FOUND = 10
@@ -314,13 +315,13 @@ def run(session: Session, run_directory: pathlib.Path, id_only: bool) -> int:
 
 
 def probe_is_running(proc_root: pathlib.Path) -> bool:
-    """True when any process has probe_readonly.py among its arguments."""
+    """True when any process has probe_readonly.py or keep_awake.py among its arguments."""
     for cmdline in proc_root.glob("[0-9]*/cmdline"):
         try:
             arguments = cmdline.read_bytes().split(b"\0")
         except OSError:
             continue
-        if any(argument.endswith(PROBE_SCRIPT_NAME) for argument in arguments):
+        if any(argument.endswith(OTHER_SCANNER_SCRIPTS) for argument in arguments):
             return True
     return False
 
@@ -347,7 +348,8 @@ def main() -> int:
     arguments = parser.parse_args()
     probe_disabled = pathlib.Path(__file__).resolve().parent / "probe-disabled"
     if not probe_disabled.exists() or probe_is_running(pathlib.Path("/proc")):
-        print(f"create {probe_disabled} and wait until no probe_readonly.py process runs", file=sys.stderr)
+        print(f"create {probe_disabled} and wait until no probe_readonly.py or keep_awake.py runs",
+              file=sys.stderr)
         return EXIT_PROBE_ACTIVE
     device = find_scanner()
     if device is None:

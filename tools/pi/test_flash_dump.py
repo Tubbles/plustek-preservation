@@ -246,6 +246,13 @@ class ProbeIsRunningTests(unittest.TestCase):
                                         b"/home/pi/plustek-preservation/probe_readonly.py", b"--watch", b"20"]])
             self.assertTrue(flash_dump.probe_is_running(pathlib.Path(directory)))
 
+    def test_finds_the_watcher_started_keep_awake(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.fake_proc(directory, [[b"sudo", b"-n", b"/home/pi/plustek-preservation/venv/bin/python",
+                                        b"/home/pi/plustek-preservation/keep_awake.py",
+                                        b"/home/pi/scanner-log/keep-awake-20261014T061710Z.jsonl"]])
+            self.assertTrue(flash_dump.probe_is_running(pathlib.Path(directory)))
+
     def test_ignores_other_processes(self):
         with tempfile.TemporaryDirectory() as directory:
             self.fake_proc(directory, [[b"/bin/sh", b"./watch-scanner.sh"], [b"python", b"flash_dump.py", b"out"]])
