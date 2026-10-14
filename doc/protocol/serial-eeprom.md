@@ -1,6 +1,6 @@
 # Serial EEPROM access (Plustek macOS engine)
 
-How Plustek's macOS scanner engine would read a serial EEPROM through ASIC registers, what the register numbers collide with on the OpticFilm 120's register map, and how `tools/pi/eeprom_read.py` reads it. Static analysis only, nothing was executed.
+How Plustek's macOS scanner engine would read a serial EEPROM through ASIC registers, what the register numbers collide with on the OpticFilm 120's register map, and how `tools/pi/eeprom_read.py` reads it. Static analysis, plus one run of the tool on the owner's unit (`../hardware/eeprom-read.md`).
 
 Source: `PLK_A120.framework/Versions/A/ScanApi` from `OpticFilmOF120_V3100_12L.dmg` (engine version 1.4.27.4.0, see `../vendor-driver/macos.md`), x86_64 slice, analysed with Ghidra 12.1.4 (`../../tools/ghidra/README.md`). Addresses are offsets in the x86_64 slice. Every claim names the function it comes from; *(inference)* marks interpretation.
 
@@ -11,6 +11,7 @@ Source: `PLK_A120.framework/Versions/A/ScanApi` from `OpticFilmOF120_V3100_12L.d
 - Per 16-bit word it writes `0x80 | address` to register `0x8b`, reads the low byte from `0x8f` and the high byte from `0x8e`, and polls register `0x4f` until bit 4 clears. Before the loop it sets `EPROMSEL` (`0x0a` bit 3) and writes `0x30` to `0x8b`. Afterwards it writes `0x00` to `0x8b` and clears `EPROMSEL`.
 - `0x30`, `0x80 | address` and `0x00` are the EWEN, READ and EWDS commands of a 93C46 in x16 organisation, written without the start bit *(inference, fits the datasheet exactly)*. How the ASIC clocks that byte out is unknown. Under other plausible clockings some READ bytes form EWEN, so only words 0 to 7 are safe to read before the clocking is known (section "Clocking of the 0x8b byte").
 - On the OpticFilm 120's register map (`CGL126`) the same registers `0x8a` to `0x8f` are the exposure fields `EXPR` and `EXPG`, and the vendor configuration keeps `EPROMSEL` set during normal operation. Whether `0x8b`, `0x8e` and `0x8f` reach an EEPROM interface on this chip at all is open (last section).
+- The run of 2026-10-14 (`../hardware/eeprom-read.md`) returned `0000` for every word, with the data registers at `00` before the first command. By the rule in "Clocking of the 0x8b byte" the USB route stops there; the next step is a read in circuit.
 
 ## CAsic::ReadFromNVRAM (0x061120)
 
@@ -196,7 +197,7 @@ Before a run on the Pi: create `~/plustek-preservation/probe-disabled`, and make
 
 Caveats:
 
-- The sequence has not been run on hardware. Plustek's engine never runs it either.
+- The sequence has run once on the owner's unit (`../hardware/eeprom-read.md`). Plustek's engine never runs it.
 - The tool runs without the open's register blast and clock set-up, like `flash_dump.py`. Whether the ASIC's EEPROM interface, if any, needs that set-up is unknown.
 - The tool writes back the value of `0x0a` it read, with only bit 3 changed. The vendor writes its shadow value (`0x48` or `0x40`) instead. If a read of `0x0a` returns pin levels for some bits, the value written back can differ from the original latch in those bits. The read-back only checks that a read returns the value just written.
 - If `0x8b` is the `EXPR` middle byte, the run leaves it at `0x00`. The vendor's scan set-up rewrites the exposure registers before every scan (capture frames 191 to 214).

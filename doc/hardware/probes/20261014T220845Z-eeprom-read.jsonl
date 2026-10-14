@@ -1,0 +1,12 @@
+{"time": "2026-10-14T22:08:45.277+00:00", "kind": "device", "vendor_id": "05e3", "product_id": "0103", "bcd_device": "0702", "words": 8}
+{"time": "2026-10-14T22:08:45.281+00:00", "kind": "registers_before", "0x31": "bc", "0x34": "00", "0x4f": "00", "0x8e": "00", "0x8f": "00"}
+{"time": "2026-10-14T22:08:45.282+00:00", "kind": "epromsel", "action": "read", "0x0a": "80"}
+{"time": "2026-10-14T22:08:45.284+00:00", "kind": "epromsel", "action": "set", "0x0a": "88"}
+{"time": "2026-10-14T22:08:47.015+00:00", "kind": "pass_done", "pass": 1, "sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb"}
+{"time": "2026-10-14T22:08:48.644+00:00", "kind": "pass_done", "pass": 2, "sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb"}
+{"time": "2026-10-14T22:08:48.747+00:00", "kind": "epromsel", "action": "restored", "0x0a": "80"}
+{"time": "2026-10-14T22:08:48.748+00:00", "kind": "compare", "differing_words": []}
+{"time": "2026-10-14T22:08:48.748+00:00", "kind": "hex_dump", "pass": 1, "lines": ["00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"]}
+{"time": "2026-10-14T22:08:48.748+00:00", "kind": "address_dependence", "words": 8, "distinct_low_0x8f": 1, "distinct_high_0x8e": 1, "follows_address": false, "note": "all words equal: 0x8f and 0x8e do not follow the address. Other than ffff this fits 0x8e and 0x8f being the EXPG exposure bytes, not an EEPROM interface"}
+{"time": "2026-10-14T22:08:48.749+00:00", "kind": "uniform_image", "word": "0000", "note": "ffff: no chip, blank chip or data stuck high. 0000: data stuck low. Other: the data registers do not follow the address."}
+{"time": "2026-10-14T22:08:48.749+00:00", "kind": "exit", "code": 15}
