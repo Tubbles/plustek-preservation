@@ -59,7 +59,7 @@ Every register read came back in the GL124/GL128 framing (value then `55`), so t
 
 Readings, all to be confirmed:
 - Register `0x06` bit 4 (PWRBIT, SANE `low.cpp` 1477 to 1483) is clear and register `0x101` bit 7 is clear, both of which mean a cold ASIC that no driver has initialised since power-up. Expected, since nothing has initialised it.
-- The link check returns `aa`, never seen in the capture, where it was only read after the driver's first writes. Whether `aa` means "not initialised" or points at the fault is open. `CIOUSB::check_toggle_r` and `CIOUSB::Do_toggle_R` in the macOS driver do not explain it: `check_toggle_r` (`0x0f88e0`) tracks the parity of bulk IN packets, and `Do_toggle_R` (`0x0f8970`) evens it out with a dummy 4-byte bulk read at `0x01000000`.
+- The link check returns `aa`, never seen in the capture, where it was only read after the driver's first writes. After the first OUT request it returns `55` like the working unit (`flash-dump.md`), so `aa` is the answer before any write and not a fault sign *(inference)*. `CIOUSB::check_toggle_r` and `CIOUSB::Do_toggle_R` in the macOS driver do not explain it: `check_toggle_r` (`0x0f88e0`) tracks the parity of bulk IN packets, and `Do_toggle_R` (`0x0f8970`) evens it out with a dummy 4-byte bulk read at `0x01000000`.
 
 ## Standby
 

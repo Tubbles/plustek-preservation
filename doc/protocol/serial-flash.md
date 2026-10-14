@@ -144,6 +144,8 @@ What the macOS engine shows:
 
 Conclusion from the code: the host software never reads, writes or supplies the USB identity. The identity therefore comes from the scanner itself, without the host: either from the ASIC's built-in defaults, or from configuration the ASIC loads at power-on before it enumerates. The serial flash is the obvious candidate for that configuration, since the engine uses less than 0.02 % of it *(inference)*. That the owner's unit falls back to Genesys defaults with different string indices fits "configuration not loaded, ROM defaults used" *(inference)*. What remains unknown: whether the GL128 loads anything from the flash at power-on at all, at which offset and in which format, and whether the owner's flash is blank, damaged or unreadable. A full flash dump from the owner's unit, and ideally one from a working unit for comparison, would settle it.
 
+The owner's dump (`../hardware/flash-dump.md`) holds the infrared record and nothing else, so on that unit the flash carries no identity. A dump of a working unit is still missing. The other candidate is a serial EEPROM on the ASIC's own EEPROM interface (`EPROMSEL`, read by the uncalled `CAsic::ReadFromNVRAM`, "Other non-volatile storage code" above).
+
 ## Reading the whole flash over USB
 
 The engine's own `SFlash_Read` accepts any 32-bit address and any length, so the whole 512 KiB can be read with the same two requests the vendor driver sends at every open:

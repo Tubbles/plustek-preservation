@@ -1,0 +1,28 @@
+{"time": "2026-10-14T06:17:16.217+00:00", "kind": "device", "vendor_id": "05e3", "product_id": "0103", "bcd_device": "0702"}
+{"time": "2026-10-14T06:17:16.220+00:00", "kind": "registers", "0x31": "bc 55", "0x34": "00 55", "0x36": "00 55"}
+{"time": "2026-10-14T06:17:16.222+00:00", "kind": "spi_init", "index": "07", "link_check": "55"}
+{"time": "2026-10-14T06:17:16.224+00:00", "kind": "spi_init", "index": "09", "link_check": "55"}
+{"time": "2026-10-14T06:17:16.225+00:00", "kind": "jedec_id_raw", "returned": "1c 31 13"}
+{"time": "2026-10-14T06:17:16.226+00:00", "kind": "jedec_id", "flash_size": 524288}
+{"time": "2026-10-14T06:17:16.231+00:00", "kind": "addressing_check", "verdict": "consistent", "block_0": "b4140000270200000f290000a20200004f020000e3280000ba020000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "block_40_incremented": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "block_40_direct": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}
+{"time": "2026-10-14T06:17:16.239+00:00", "kind": "progress", "pass": 1, "address": "000000"}
+{"time": "2026-10-14T06:17:18.336+00:00", "kind": "progress", "pass": 1, "address": "010000"}
+{"time": "2026-10-14T06:17:20.431+00:00", "kind": "progress", "pass": 1, "address": "020000"}
+{"time": "2026-10-14T06:17:22.529+00:00", "kind": "progress", "pass": 1, "address": "030000"}
+{"time": "2026-10-14T06:17:24.626+00:00", "kind": "progress", "pass": 1, "address": "040000"}
+{"time": "2026-10-14T06:17:26.727+00:00", "kind": "progress", "pass": 1, "address": "050000"}
+{"time": "2026-10-14T06:17:28.827+00:00", "kind": "progress", "pass": 1, "address": "060000"}
+{"time": "2026-10-14T06:17:30.923+00:00", "kind": "progress", "pass": 1, "address": "070000"}
+{"time": "2026-10-14T06:17:33.573+00:00", "kind": "pass_done", "pass": 1, "sha256": "d8a31ba9d2e07b95260e49a4cc6a11c3941546014c33cd314f1320f945bf81b1", "bytes_not_ff": 28, "bytes_not_00": 524274}
+{"time": "2026-10-14T06:17:33.577+00:00", "kind": "progress", "pass": 2, "address": "07ffc0"}
+{"time": "2026-10-14T06:17:35.675+00:00", "kind": "progress", "pass": 2, "address": "06ffc0"}
+{"time": "2026-10-14T06:17:37.770+00:00", "kind": "progress", "pass": 2, "address": "05ffc0"}
+{"time": "2026-10-14T06:17:39.865+00:00", "kind": "progress", "pass": 2, "address": "04ffc0"}
+{"time": "2026-10-14T06:17:41.945+00:00", "kind": "progress", "pass": 2, "address": "03ffc0"}
+{"time": "2026-10-14T06:17:44.043+00:00", "kind": "progress", "pass": 2, "address": "02ffc0"}
+{"time": "2026-10-14T06:17:46.139+00:00", "kind": "progress", "pass": 2, "address": "01ffc0"}
+{"time": "2026-10-14T06:17:48.237+00:00", "kind": "progress", "pass": 2, "address": "00ffc0"}
+{"time": "2026-10-14T06:17:50.908+00:00", "kind": "pass_done", "pass": 2, "sha256": "d8a31ba9d2e07b95260e49a4cc6a11c3941546014c33cd314f1320f945bf81b1", "bytes_not_ff": 28, "bytes_not_00": 524274}
+{"time": "2026-10-14T06:17:50.941+00:00", "kind": "compare", "differing_blocks": []}
+{"time": "2026-10-14T06:17:50.944+00:00", "kind": "aliasing_check", "aliased_address_bits": []}
+{"time": "2026-10-14T06:17:50.949+00:00", "kind": "exit", "code": 0}
