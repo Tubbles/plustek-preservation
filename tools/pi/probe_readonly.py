@@ -11,6 +11,15 @@ Nothing is written to the scanner. Prints one JSON object per request.
 Usage (on the Pi, as root because no udev rule grants access):
     sudo ~/plustek-preservation/venv/bin/python probe_readonly.py
     sudo ~/plustek-preservation/venv/bin/python probe_readonly.py --watch 10
+    sudo ~/plustek-preservation/venv/bin/python probe_readonly.py --watch 0.5 --gpio
+
+--gpio adds registers 0x31 and 0x33 (GPIO pin levels) to the polling, for
+the film holder test: on the original board the loader sensor is 0x31
+bit 2 (plist LoaderReadyReg 0x31,0x04), on the "-new1440" board it is
+0x31 bit 7 (doc/vendor-driver/macos.md). The bit is clear while a holder
+is ready (CAsic::IsLoaderReady, 0x06b020 in the macOS engine). In the
+issue #151 capture, bit 2 goes from 1 to 0 while a holder is presumably
+inserted, and bit 0 changes with it.
 """
 
 import argparse
@@ -52,6 +61,7 @@ def one_byte_read(name: str, value: int, index: int) -> VendorRead:
 
 LINK_CHECK = one_byte_read("link check", 0x008E, 0x0020)
 STATUS_REGISTER = register_read(0x101)
+GPIO_READS = (register_read(0x31), register_read(0x33))
 
 # Every entry is a read the vendor driver sends in the issue #151 capture.
 VENDOR_READS = (
@@ -153,14 +163,14 @@ def same_device(device, candidate) -> bool:
     return candidate is not None and (candidate.bus, candidate.address) == (device.bus, device.address)
 
 
-def watch(device, interval_seconds: float) -> None:
+def watch(device, interval_seconds: float, reads: tuple) -> None:
     """Poll the status reads until this device leaves the bus.
 
     A scanner that went to standby and was woken again re-enumerates at a
     new address; that counts as gone, because this handle is stale.
     """
     while True:
-        for read in (LINK_CHECK, STATUS_REGISTER):
+        for read in reads:
             record = perform_vendor_read(device, read)
             emit(record)
             if "error" in record and not same_device(device, find_scanner()):
@@ -173,14 +183,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Read-only probe of an OpticFilm 120 over USB.")
     parser.add_argument("--watch", type=float, metavar="SECONDS",
                         help="after the probe, poll status every SECONDS until the device disappears")
+    parser.add_argument("--gpio", action="store_true",
+                        help="also poll registers 0x31 and 0x33 in watch mode (film holder test)")
     arguments = parser.parse_args()
+    if arguments.gpio and not arguments.watch:
+        parser.error("--gpio needs --watch")
     device = find_scanner()
     if device is None:
         emit({"kind": "absent"})
         return 1
     probe_once(device)
     if arguments.watch:
-        watch(device, arguments.watch)
+        extra_reads = GPIO_READS if arguments.gpio else ()
+        watch(device, arguments.watch, (LINK_CHECK, STATUS_REGISTER) + extra_reads)
     return 0
 
 
