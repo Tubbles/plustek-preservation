@@ -16,7 +16,7 @@ From `dmesg` on the test Raspberry Pi 3 (Linux 6.18.50+rpt-rpi-v8, `dwc_otg` hos
 ```
 
 - Vendor `05e3` is Genesys Logic, not Plustek (`07b3`). Product `0103` is not in the `usb.ids` database. Neighbouring Genesys IDs in `usb.ids` are other film scanners: `0120` Pacific Image PrimeFilm 1800u, `0142` "Multiple Slides Scanner-3600", `0143` "Multiple Frames Film Scanner-36series", `0145` Reflecta CrystalScan 7200, `0180` "Plustek Scanner".
-- A working OpticFilm 120 enumerates as `07b3:1406` (Plustek) with the same bcdDevice `0x0702` (Genesys GL128). This unit reports Genesys defaults instead, so the Windows driver (which matches only `07b3:1406`) cannot bind to it. Evidence in `../research.md`.
+- A working OpticFilm 120 enumerates as `07b3:1406` (Plustek) with the same bcdDevice `0x0702` (Genesys GL126 on the board, GL128 in SANE's naming, `../research.md`). This unit reports Genesys defaults instead, so the Windows driver (which matches only `07b3:1406`) cannot bind to it. Evidence in `../research.md`.
 - No kernel driver bound to it (expected: scanners are driven from user space).
 - The device disconnected 4 min 55 s after enumerating, with no host software talking to it. See the standby section below.
 

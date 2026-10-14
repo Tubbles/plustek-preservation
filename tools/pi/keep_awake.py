@@ -21,8 +21,9 @@ Board revision: in the "-new1440" configuration of Plustek's macOS driver
 (a newer OpticFilm 120 board, added 2022-11-18) GPIO8 is the film loader
 sensor (LoaderReadyReg 0x31,0x80) and StandbyReg is disabled. Driving it
 there would fight the sensor. Run this tool only on the original board.
-The watcher runs it only when ~/plustek-preservation/keep-awake-enabled
-exists.
+The owner's board is the original one: its parts are dated 2010 to 2012
+and the PCB says 2012 (doc/hardware/board.md). The watcher runs it only
+when ~/plustek-preservation/keep-awake-enabled exists.
 
 Exit codes (1 and 2 are left to Python and argparse): 0 the output enable
 and the pin read back high, 10 scanner not found, 13 USB error, short

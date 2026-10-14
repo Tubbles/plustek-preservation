@@ -23,8 +23,9 @@ Sources:
 
 **Hypothesis (unverified):** the controller lost the configuration that holds the Plustek identity (an external EEPROM or flash, or a fault reading it) and fell back to Genesys defaults. The string index change (10/11 to 1/2) fits a different descriptor source, not a changed value in the same table. Where a GL128 board keeps its identity is not documented publicly. Whether the rest of the scanner works is the next thing to test (see `PLAN.md` phase 2).
 
-## Controller: Genesys GL128
+## Controller: Genesys GL126, called GL128 by SANE
 
+- The ASIC on the owner's board is marked `GL126` (`hardware/board.md`). Genesys Logic lists GL125 (bus powered), GL126 and GL128 (self powered) as separate scanner controllers; the [GL126 product page](https://www.genesyslogic.com.tw/en/product-detail/PC-based_Scanner/GL126) gives USB 2.0 high speed with an embedded RISC CPU for the USB protocol, a 12 MHz clock input, CIS or CCD sensors, one or two SDRAMs up to 32M×16, 32 GPIO and 7 GPO pins, bipolar stepper control and "external MCU with SPI interface". Plustek's engine selects its `CGL126` class for bcdDevice `0x0702` and names the Windows driver folder `GL126` (`vendor-driver/macos.md`, `vendor-driver/windows.md`). SANE and pyopticfilm call the same bcdDevice GL128, and this documentation keeps their name where it refers to their code (`protocol/gl128-registers.md`, `protocol/of120-capture-151.md`).
 - bcdDevice `0x0702` maps to GL128 in SANE's chip probe (verified: `tools/check-usb-chip.c` lines 1913 to 1914 and 4043 to 4044 of the 2026-10-12 master). `sane-find-scanner` reported `chip=GL128` for the working unit in issue #151.
 - The GL128 is described as a GL124-family ASIC ([SANE commit 288d813a](https://gitlab.com/sane-project/backends/-/commit/288d813af2169a6ac9860a86b632203cbd281b64)). No public GL124 or GL128 datasheet is known.
 - Register access uses USB control transfers in the GL124 framing that SANE already implements (`backend/genesys/scanner_interface_usb.cpp`). The vendor driver in the issue #151 capture polls register `0x101` thousands of times this way.
@@ -36,7 +37,7 @@ Sources:
 - Sensor: Toshiba TCD2558DG-1 tri-linear colour CCD, 5340 pixels, 7 µm pitch ([closeuphotography](https://www.closeuphotography.com/plustek-opticfilm-120-scanner-lens-test)).
 - LED light source including an infrared LED for dust removal; 50 mm f/3.92 lens; 5300 dpi optical, about 3450 dpi measured; 5.7 kg ([filmscanner.info](https://filmscanner.info/en/PlustekOpticFilm120.html)).
 - Motorised holder transport. The current (2024) Quick Guide says the scanner will not pull in a holder without USB, and ejects an inserted holder "when connection with a computer has been established" ([Quick Guide 2024](https://d3b63i9tvm4mo6.cloudfront.net/downloads/english/user_guide/17-0703A1M00011_12L_V1.0.pdf), pp. 17 and 21).
-- No teardown beyond lens access, no service manual, no board photos found.
+- No public teardown beyond lens access and no service manual. The owner's main board is documented from photos in `hardware/board.md`.
 
 ## Software support
 
