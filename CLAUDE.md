@@ -14,6 +14,7 @@ Host names, access details and machine specific notes live in `CLAUDE.local.md` 
 
 - Until the protocol is understood, only send requests whose effect is known from the vendor driver or from captures. A wrong write could move a motor against an end stop or change the firmware configuration. Reads of descriptors and documented status requests are fine.
 - The scanner leaves the bus about 5 minutes after a wake, even with read-only polling (`doc/hardware/usb.md`, "Standby"). The owner wakes it with the power button, so any session with the scanner has to fit in that window.
+- The unit was reassembled on 2026-10-15 and its mechanics are unverified (`doc/hardware/board.md`, "Reassembly"). Until `doc/work/0010-mechanical-check.md` is done, send nothing that powers or moves the motor, and keep the film holder out of the unit.
 
 ## Driver code (submodule)
 
