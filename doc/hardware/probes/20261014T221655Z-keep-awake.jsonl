@@ -1,0 +1,4 @@
+{"time": "2026-10-14T22:16:56.581+00:00", "kind": "write", "register": "31", "value": "bc"}
+{"time": "2026-10-14T22:16:56.583+00:00", "kind": "write", "register": "34", "value": "80"}
+{"time": "2026-10-14T22:16:56.585+00:00", "kind": "registers", "0x31_before": "bc", "0x34_before": "00", "0x34_after": "80", "0x31_after": "bc"}
+{"time": "2026-10-14T22:16:56.585+00:00", "kind": "exit", "code": 0}
