@@ -175,6 +175,51 @@ def run_move_1_transfers(**move_arguments):
 
 MOVE_1_START = len(LOGGED_READ_TRANSFERS) + len(move_1_state_transfers())
 
+# --home
+# 0x101 of the owner's unit off home after a move 1 run: 0xf4 (PWRBIT set, HOMESNR and MOTORENB clear), then polls
+# 0xf5 while the motor runs, 0xfd with HOMESNR set and the motor still running, 0xfc with the motor stopped at home.
+# Made up apart from the bit meanings. The other registers as for move 1, and 0x09 as the open leaves it (frame 17).
+HOME_UNIT_REGISTERS = {**WORKING_UNIT_MOVE_1_REGISTERS, 0x09: 0x00}
+HOME_REACHED_WITH_CUT = {**HOME_UNIT_REGISTERS, 0x101: [0xF4, 0xF5, 0xF5, 0xFD, 0xFD, 0xFC]}
+HOME_REACHED_BY_ITSELF = {**HOME_UNIT_REGISTERS, 0x101: [0xF4, 0xF5, 0xF5, 0xFC]}
+HOME_NOT_REACHED = {**HOME_UNIT_REGISTERS, 0x101: [0xF4, 0xF5, 0xF5, 0xF4]}
+HOME_POLL_LIMIT = {**HOME_UNIT_REGISTERS, 0x101: [0xF4] + [0xF5] * 8 + [0xF5, 0xF4]}
+HOME_LOGGED_READ_TRANSFERS = LOGGED_READ_TRANSFERS + [read_transfer(0x09)]
+HOME_START = len(HOME_LOGGED_READ_TRANSFERS) + len(move_1_state_transfers())
+CUT_FEEDL_TRANSFER = write_transfer("3d003e003f01")
+
+
+def move_1_block_hex(feedl_hex="000061"):
+    return MOVE_1_BLOCK_10158.replace("3d00 3e27 3fae", f"3d{feedl_hex[0:2]} 3e{feedl_hex[2:4]} 3f{feedl_hex[4:6]}")
+
+
+def home_block_hex(feedl_hex="000061"):
+    """The block of frame 6259 with FEEDL replaced and 0x02 = 0x1c (MTRREV set) in place of 0x18."""
+    return move_1_block_hex(feedl_hex).replace("0218", "021c")
+
+
+def home_transfers(feedl_hex="000061", polls=4, polls_after_cut=None):
+    """move_1_transfers with the home block, and with the cut's 0x02 = 0x0c (MTRREV kept) in place of 0x08."""
+    sequence = move_1_transfers(feedl_hex, polls, polls_after_cut)
+    block, cut = 2, 14 + polls
+    assert sequence[block] == write_transfer(move_1_block_hex(feedl_hex))
+    sequence[block] = write_transfer(home_block_hex(feedl_hex))
+    if polls_after_cut is not None:
+        assert sequence[cut:cut + 3] == [write_transfer("0208"), LINK_CHECK_TRANSFER, CUT_FEEDL_TRANSFER]
+        sequence[cut] = write_transfer("020c")
+    return sequence
+
+
+def run_home_transfers(**move_arguments):
+    return (HOME_LOGGED_READ_TRANSFERS + move_1_state_transfers() + home_transfers(**move_arguments)
+            + HOME_LOGGED_READ_TRANSFERS)
+
+
+def register_02_writes(transfers):
+    """The values written to 0x02 among transfers in FakeScanner form, in order."""
+    return [transfer[4][position + 1] for transfer in transfers if transfer[0] == 0x40 and transfer[2] == 0x0083
+            for position in range(0, len(transfer[4]), 2) if transfer[4][position] == 0x02]
+
 
 def capture_records(path, first, last):
     """Records of the device the open is sent to, from frame first to frame last."""
@@ -341,13 +386,14 @@ class FakeClock:
         return vendor_open.Environment(sleep=self.sleep, monotonic=self.monotonic, find_device=lambda: self.scanner)
 
 
-def run_move(scanner, clock=None, steps=97, backscan=False, poll_limit_seconds=10.0, lamp=False, as_move_1=False):
+def run_move(scanner, clock=None, steps=97, backscan=False, poll_limit_seconds=10.0, lamp=False, as_move_1=False,
+             home=False):
     """Run run() and return the exit code and the log records."""
     clock = clock or FakeClock(scanner)
     log_file = io.StringIO()
     with contextlib.redirect_stdout(io.StringIO()):
         exit_code = move_carrier.run(flash_dump.Session(scanner, log_file), clock.environment(), steps, backscan,
-                                     poll_limit_seconds, lamp, as_move_1)
+                                     poll_limit_seconds, lamp, as_move_1, home)
     return exit_code, [json.loads(line) for line in log_file.getvalue().splitlines()]
 
 
@@ -1072,6 +1118,349 @@ class MoveOneTests(unittest.TestCase):
                 self.assertEqual(raised.exception.code, 2)
                 self.assertIn(flag, error_output.getvalue())
                 move_carrier.parse_arguments(["logs", flag])
+
+
+@unittest.skipUnless(CAPTURE_PATH.exists(), CAPTURE_MISSING)
+class HomeCaptureTests(unittest.TestCase):
+    def test_a_home_run_sends_frames_6259_to_6283_with_its_feedl_and_mtrrev(self):
+        captured = submits_with_answers(capture_records(CAPTURE_PATH, 6259, 6284))
+        expected = [transfer_of(submit) for submit, _ in captured]
+        self.assertEqual(expected[0], write_transfer(MOVE_1_BLOCK_10158.replace(" ", "")))
+        expected[0] = write_transfer(home_block_hex())
+        scanner = FakeScanner(HOME_REACHED_BY_ITSELF)
+        self.assertEqual(run_move(scanner, home=True)[0], move_carrier.EXIT_GOOD)
+        block_index = HOME_START + 2
+        self.assertEqual(scanner.transfers[:block_index], run_home_transfers()[:block_index])
+        self.assertEqual(scanner.transfers[block_index:block_index + len(expected)], expected)
+
+    def test_register_state_at_the_start_write_is_move_1_with_mtrrev_and_feedl(self):
+        scanner = FakeScanner(HOME_REACHED_BY_ITSELF)
+        self.assertEqual(run_move(scanner, home=True)[0], move_carrier.EXIT_GOOD)
+        start = scanner.transfers.index(write_transfer("0f01"))
+        at_start = replay_register_writes(shadow_of_open(), scanner.transfers[:start + 1])
+        at_move_1 = shadow_of_capture(CAPTURE_PATH, FIRST_FRAME, MOVE_1_START_FRAME)
+        differing = {register: (at_start.get(register), at_move_1.get(register))
+                     for register in set(at_start) | set(at_move_1)
+                     if at_start.get(register) != at_move_1.get(register)}
+        self.assertEqual(differing, {0x02: (0x1C, 0x18), 0x3E: (0x00, 0x27), 0x3F: (0x61, 0xAE)})
+        self.assertEqual(at_start[0x02], at_move_1[0x02] | move_carrier.MOTOR_REVERSE_BIT)
+
+    def test_the_cut_of_move_1_is_mtrpwr_cleared_from_0x18(self):
+        """The cut 0x02 = 0x08 is the block's 0x18 with MTRPWR cleared, so 0x1c gives 0x0c."""
+        captured_block = bytes.fromhex(capture_records(CAPTURE_PATH, 6259, 6259)[0]["data_hex"])
+        self.assertEqual(captured_block[42], 0x02)
+        register_02 = captured_block[43]
+        cut = capture_records(CAPTURE_PATH, 6287, 6287)[0]
+        self.assertEqual(bytes.fromhex(cut["data_hex"]), bytes([0x02, register_02 & ~0x10]))
+        self.assertEqual(move_carrier.HOME_CUT_MOTOR_POWER.sent, bytes([0x02, (register_02 | 0x04) & ~0x10]))
+
+
+class HomeTests(unittest.TestCase):
+    def assert_0x02_writes(self, transfers, expected_after_start):
+        """0x1c is the only 0x02 write before the start, and the last one is 0x08 (MTRREV clear)."""
+        start = transfers.index(write_transfer("0f01"))
+        self.assertEqual(register_02_writes(transfers[:start]), [0x1C])
+        self.assertEqual(register_02_writes(transfers[start:]), expected_after_start)
+        self.assertEqual(register_02_writes(transfers)[-1], 0x08)
+
+    def test_home_block_is_move_1_block_with_0x02_0x1c(self):
+        self.assertEqual(move_carrier.home_block(97).sent, bytes.fromhex(home_block_hex()))
+        self.assertEqual(move_carrier.home_block(10158).sent, bytes.fromhex(home_block_hex("0027ae")))
+        differing = [position for position, (home, move_1) in
+                     enumerate(zip(move_carrier.home_block(500).sent, move_carrier.move_1_block(500).sent))
+                     if home != move_1]
+        self.assertEqual(differing, [43])
+        self.assertEqual(move_carrier.MOVE_1_BLOCK_CAPTURED[42:44], bytes.fromhex("0218"))
+        self.assertEqual(move_carrier.home_block(97).frame, 6259)
+        for steps in (0, 10159):
+            with self.subTest(steps=steps):
+                with self.assertRaises(PermissionError):
+                    move_carrier.home_block(steps)
+
+    def test_mtrrev_is_bit_2_and_the_home_cut_keeps_it(self):
+        self.assertEqual(move_carrier.MOTOR_REVERSE_BIT, 1 << 2)
+        self.assertEqual(move_carrier.with_motor_reverse(bytes.fromhex("0218 0318 0208")),
+                         bytes.fromhex("021c 0318 020c"))
+        self.assertEqual(move_carrier.HOME_CUT_MOTOR_POWER.sent, bytes.fromhex("020c"))
+        self.assertEqual(move_carrier.CUT_MOTOR_POWER.sent, bytes.fromhex("0208"))
+
+    def test_home_transfers_differ_from_move_1_in_the_block_and_the_0x09_reads_only(self):
+        home = FakeScanner(HOME_NOT_REACHED)
+        move_1 = FakeScanner(HOME_NOT_REACHED)
+        self.assertEqual(run_move(home, steps=3000, home=True)[0], move_carrier.EXIT_HOME_NOT_REACHED)
+        self.assertEqual(run_move(move_1, steps=3000, as_move_1=True)[0], move_carrier.EXIT_GOOD)
+        self.assertEqual(home.transfers.count(read_transfer(0x09)), 2)
+        self.assertNotIn(read_transfer(0x09), move_1.transfers)
+        home_without_0x09 = [transfer for transfer in home.transfers if transfer != read_transfer(0x09)]
+        self.assertEqual(len(home_without_0x09), len(move_1.transfers))
+        differing = [(home_transfer, move_1_transfer) for home_transfer, move_1_transfer
+                     in zip(home_without_0x09, move_1.transfers) if home_transfer != move_1_transfer]
+        self.assertEqual(differing, [(write_transfer(home_block_hex("000bb8")),
+                                      write_transfer(move_1_block_hex("000bb8")))])
+
+    def test_home_reached_while_the_motor_runs_sends_the_cut_and_exits_zero(self):
+        scanner = FakeScanner(HOME_REACHED_WITH_CUT)
+        exit_code, records = run_move(scanner, home=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_GOOD)
+        self.assertEqual(scanner.transfers, run_home_transfers(polls=3, polls_after_cut=2))
+        polls = records_of_kind(records, "poll")
+        self.assertEqual([(poll["phase"], poll["0x101"]) for poll in polls],
+                         [("move", "f5"), ("move", "f5"), ("move", "fd"), ("after_cut", "fd"), ("after_cut", "fc")])
+        reached = records_of_kind(records, "home_reached")
+        self.assertEqual(len(reached), 1)
+        self.assertEqual((reached[0]["seconds_since_start"], reached[0]["0x101"], reached[0]["cut_sent"],
+                          reached[0]["motorenb_cleared_after_cut"]),
+                         (polls[2]["seconds_since_start"], "fd", True, True))
+        self.assertEqual(records_of_kind(records, "home_not_reached") + records_of_kind(records, "move_end"), [])
+        self.assertEqual(records_of_kind(records, "registers_after")[0]["0x09"], "00")
+        self.assert_0x02_writes(scanner.transfers, [0x0C, 0x08])
+
+    def test_home_reached_with_the_motor_stopped_sends_no_cut_and_exits_zero(self):
+        scanner = FakeScanner(HOME_REACHED_BY_ITSELF)
+        exit_code, records = run_move(scanner, home=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_GOOD)
+        self.assertEqual(scanner.transfers, run_home_transfers(polls=3))
+        self.assertNotIn(CUT_FEEDL_TRANSFER, scanner.transfers)
+        reached = records_of_kind(records, "home_reached")[0]
+        self.assertEqual((reached["0x101"], reached["cut_sent"], reached["motorenb_cleared_after_cut"]),
+                         ("fc", False, None))
+        self.assert_0x02_writes(scanner.transfers, [0x08])
+
+    def test_homesnr_on_the_first_poll(self):
+        cases = (([0xF4, 0xFD, 0xFC], True, {"polls": 1, "polls_after_cut": 1}, [0x0C, 0x08]),
+                 ([0xF4, 0xFC], False, {"polls": 1}, [0x08]))
+        for status_values, cut_sent, transfer_arguments, writes_after_start in cases:
+            with self.subTest(first_poll=f"{status_values[1]:02x}"):
+                scanner = FakeScanner({**HOME_UNIT_REGISTERS, 0x101: status_values})
+                exit_code, records = run_move(scanner, home=True)
+                self.assertEqual(exit_code, move_carrier.EXIT_GOOD)
+                self.assertEqual(scanner.transfers, run_home_transfers(**transfer_arguments))
+                reached = records_of_kind(records, "home_reached")[0]
+                self.assertEqual((reached["seconds_since_start"], reached["cut_sent"]), (0.0, cut_sent))
+                self.assert_0x02_writes(scanner.transfers, writes_after_start)
+
+    def test_motor_stopped_off_home_sends_no_cut_finishes_and_exits_25(self):
+        scanner = FakeScanner(HOME_NOT_REACHED)
+        exit_code, records = run_move(scanner, home=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_HOME_NOT_REACHED)
+        self.assertEqual(exit_code, 25)
+        self.assertEqual(scanner.transfers, run_home_transfers(polls=3))
+        self.assertNotIn(CUT_FEEDL_TRANSFER, scanner.transfers)
+        not_reached = records_of_kind(records, "home_not_reached")
+        self.assertEqual([(record["0x101"], record["cut_sent"]) for record in not_reached], [("f4", False)])
+        self.assertEqual(records_of_kind(records, "home_reached"), [])
+        self.assert_0x02_writes(scanner.transfers, [0x08])
+
+    def test_poll_limit_sends_the_cut_and_exits_23(self):
+        scanner = FakeScanner(HOME_POLL_LIMIT)
+        exit_code, records = run_move(scanner, poll_limit_seconds=0.1, home=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_MOTOR_TIMEOUT)
+        self.assertEqual(scanner.transfers, run_home_transfers(polls=8, polls_after_cut=2))
+        move_end = records_of_kind(records, "move_end")[0]
+        self.assertEqual((move_end["motorenb_cleared_within_limit"], move_end["cut_sent"],
+                          move_end["motorenb_cleared_after_cut"]), (False, True, True))
+        self.assertEqual(records_of_kind(records, "home_reached") + records_of_kind(records, "home_not_reached"), [])
+        self.assert_0x02_writes(scanner.transfers, [0x0C, 0x08])
+
+    def test_motorenb_still_set_5_seconds_after_the_cut_at_home_exits_23(self):
+        scanner = FakeScanner({**HOME_UNIT_REGISTERS, 0x101: [0xF4, 0xF5, 0xFD]})
+        exit_code, records = run_move(scanner, home=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_MOTOR_TIMEOUT)
+        self.assertEqual(scanner.transfers, run_home_transfers(polls=2, polls_after_cut=335))
+        reached = records_of_kind(records, "home_reached")[0]
+        self.assertEqual((reached["cut_sent"], reached["motorenb_cleared_after_cut"]), (True, False))
+        self.assertEqual(records_of_kind(records, "registers_after")[0]["0x101"], "fd")
+        self.assert_0x02_writes(scanner.transfers, [0x0C, 0x08])
+
+    def test_usb_error_on_a_poll_before_the_cut_sends_no_cut_and_no_finish(self):
+        poll_count = 0
+
+        def second_poll(transfer):
+            nonlocal poll_count
+            if transfer == read_transfer(0x101) and write_transfer("0f01") in scanner.transfers:
+                poll_count += 1
+            return poll_count == 2
+
+        scanner = FakeScanner(HOME_REACHED_WITH_CUT, fail_on=second_poll)
+        exit_code, records = run_move(scanner, home=True)
+        self.assertEqual(exit_code, flash_dump.EXIT_USB_ERROR)
+        self.assertEqual(scanner.transfers[-1], read_transfer(0x101))
+        self.assertEqual(scanner.transfers, run_home_transfers(polls=2)[:HOME_START + 14 + 2])
+        for transfer in (write_transfer("020c"), write_transfer("0208"), CUT_FEEDL_TRANSFER, write_transfer("0300")):
+            self.assertNotIn(transfer, scanner.transfers)
+        self.assertEqual(register_02_writes(scanner.transfers), [0x1C])
+        self.assertEqual(records_of_kind(records, "error")[0]["request"], "poll_move")
+
+    def test_bad_link_byte_on_the_0x09_read_stops_before_any_write(self):
+        scanner = FakeScanner(HOME_REACHED_BY_ITSELF, bad_register_read_number=len(HOME_LOGGED_READ_TRANSFERS))
+        exit_code, records = run_move(scanner, home=True)
+        self.assertEqual(exit_code, flash_dump.EXIT_USB_ERROR)
+        self.assertEqual(scanner.transfers, HOME_LOGGED_READ_TRANSFERS)
+        self.assertEqual(len(records_of_kind(records, "error")), 1)
+
+    def test_cut_is_0x0c_for_home_and_0x08_for_the_other_variants(self):
+        cases = ((HOME_POLL_LIMIT, {"home": True}, "020c"),
+                 ({**WORKING_UNIT_MOVE_1_REGISTERS, 0x101: [0xDC] + [0xDD] * 8 + [0xF5, 0xF4]}, {"as_move_1": True},
+                  "0208"),
+                 ({**WORKING_UNIT_REGISTERS, 0x101: [0xF4] + [0xD5] * 8 + [0xF5, 0xF4]}, {}, "0208"),
+                 ({**WORKING_UNIT_REGISTERS, 0x101: [0xF4] + [0xD5] * 8 + [0xF5, 0xF4]}, {"backscan": True}, "0208"))
+        for registers, variant, cut_hex in cases:
+            with self.subTest(variant=variant):
+                scanner = FakeScanner(registers)
+                self.assertEqual(run_move(scanner, poll_limit_seconds=0.1, **variant)[0],
+                                 move_carrier.EXIT_MOTOR_TIMEOUT)
+                cut_feedl = scanner.transfers.index(CUT_FEEDL_TRANSFER)
+                self.assertEqual(scanner.transfers[cut_feedl - 2:cut_feedl], [write_transfer(cut_hex),
+                                                                              LINK_CHECK_TRANSFER])
+                self.assertEqual(scanner.transfers.count(write_transfer("020c")), 1 if variant.get("home") else 0)
+
+    def test_exit_zero_needs_homesnr_set_and_motorenb_clear_at_the_end(self):
+        cases = ((move_carrier.EXIT_GOOD, 0xFC, move_carrier.EXIT_GOOD),
+                 (move_carrier.EXIT_GOOD, 0xFD, move_carrier.EXIT_MOTOR_TIMEOUT),
+                 (move_carrier.EXIT_GOOD, 0xF4, move_carrier.EXIT_HOME_NOT_REACHED),
+                 (move_carrier.EXIT_GOOD, 0xF5, move_carrier.EXIT_MOTOR_TIMEOUT),
+                 (move_carrier.EXIT_HOME_NOT_REACHED, 0xFC, move_carrier.EXIT_HOME_NOT_REACHED),
+                 (move_carrier.EXIT_MOTOR_TIMEOUT, 0xFC, move_carrier.EXIT_MOTOR_TIMEOUT))
+        for move_exit_code, status_after, expected in cases:
+            with self.subTest(move_exit_code=move_exit_code, status_after=f"{status_after:02x}"):
+                self.assertEqual(move_carrier.home_exit_code(move_exit_code, status_after), expected)
+        scanner = FakeScanner({**HOME_UNIT_REGISTERS, 0x101: [0xF4, 0xF5, 0xFC, 0xF4]})
+        self.assertEqual(run_move(scanner, home=True)[0], move_carrier.EXIT_HOME_NOT_REACHED)
+
+    def test_homesnr_set_before_the_move_sends_no_write_and_exits_26(self):
+        scanner = FakeScanner({**HOME_UNIT_REGISTERS, 0x101: 0xDC})
+        exit_code, records = run_move(scanner, home=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_ALREADY_HOME)
+        self.assertEqual(exit_code, 26)
+        self.assertEqual(scanner.transfers, HOME_LOGGED_READ_TRANSFERS)
+        self.assertEqual(records_of_kind(records, "refused")[0]["reason"],
+                         "HOMESNR set: the carrier is at home, nothing to do")
+
+    def test_backscan_left_set_refuses_home_with_exit_22(self):
+        for status, reasons in ((0xF4, ["0x09 bit 3 set: BACKSCAN left from an earlier run"]),
+                                (0xDC, ["0x09 bit 3 set: BACKSCAN left from an earlier run",
+                                        "HOMESNR set: the carrier is at home, nothing to do"])):
+            with self.subTest(status=f"{status:02x}"):
+                scanner = FakeScanner({**HOME_UNIT_REGISTERS, 0x101: status, 0x09: 0x08})
+                exit_code, records = run_move(scanner, home=True)
+                self.assertEqual(exit_code, move_carrier.EXIT_OPEN_NOT_SENT)
+                self.assertEqual(scanner.transfers, HOME_LOGGED_READ_TRANSFERS)
+                self.assertEqual(records_of_kind(records, "registers_before")[0]["0x09"], "08")
+                self.assertEqual(records_of_kind(records, "refused")[0]["reason"], ", ".join(reasons))
+        self.assertEqual(move_carrier.backscan_left_reasons({0x09: 0xF7}), [])
+        scanner = FakeScanner({**HOME_REACHED_BY_ITSELF, 0x09: 0xF7})
+        self.assertEqual(run_move(scanner, home=True)[0], move_carrier.EXIT_GOOD)
+
+    def test_open_gate_comes_first_and_the_other_variants_ignore_homesnr_and_0x09(self):
+        scanner = FakeScanner({**HOME_UNIT_REGISTERS, 0x101: 0x4C})
+        exit_code, records = run_move(scanner, home=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_OPEN_NOT_SENT)
+        self.assertEqual(scanner.transfers, HOME_LOGGED_READ_TRANSFERS)
+        reason = records_of_kind(records, "refused")[0]["reason"]
+        self.assertIn("PWRBIT clear", reason)
+        self.assertIn("HOMESNR set", reason)
+        self.assertEqual(move_carrier.home_gate_refusal_reasons({0x101: 0xF4}), [])
+        self.assertEqual(move_carrier.gate_refusal_reasons({0x101: 0xDC, 0x36: 0xFE}), [])
+        for registers, variant in ((WORKING_UNIT_MOVE_1_REGISTERS, {"as_move_1": True}),
+                                   (WORKING_UNIT_REGISTERS, {})):
+            with self.subTest(variant=variant):
+                scanner = FakeScanner({**registers, 0x101: [0xDC, 0xD4], 0x09: 0x08})
+                self.assertEqual(run_move(scanner, **variant)[0], move_carrier.EXIT_GOOD)
+                self.assertNotIn(read_transfer(0x09), scanner.transfers)
+
+    def test_steps_set_feedl(self):
+        scanner = FakeScanner(HOME_REACHED_BY_ITSELF)
+        self.assertEqual(run_move(scanner, steps=10158, home=True)[0], move_carrier.EXIT_GOOD)
+        self.assertEqual(scanner.transfers, run_home_transfers(feedl_hex="0027ae", polls=3))
+
+    def test_every_request_of_a_home_run_is_logged_and_checked(self):
+        for registers, poll_limit_seconds in ((HOME_REACHED_WITH_CUT, 10.0), (HOME_POLL_LIMIT, 0.1)):
+            with self.subTest(poll_limit_seconds=poll_limit_seconds):
+                scanner = FakeScanner(registers)
+                with unittest.mock.patch.object(move_carrier, "check_allowed",
+                                                wraps=move_carrier.check_allowed) as check, \
+                        unittest.mock.patch.object(vendor_open, "read_register",
+                                                   wraps=vendor_open.read_register) as read:
+                    _, records = run_move(scanner, poll_limit_seconds=poll_limit_seconds, home=True)
+                self.assertEqual(check.call_count + read.call_count, len(scanner.transfers))
+                request_kinds = {"register_state_write", "register_write", "register_read", "buffer_header",
+                                 "bulk_write", "upload_status_read", "link_check", "poll"}
+                logged = len([record for record in records if record["kind"] in request_kinds])
+                summaries = len(records_of_kind(records, "registers_before")
+                                + records_of_kind(records, "registers_after"))
+                self.assertEqual(logged + summaries * len(HOME_LOGGED_READ_TRANSFERS), len(scanner.transfers))
+
+    def test_permitted_requests_are_move_1_with_the_home_block_cut_and_0x09_read(self):
+        home_plan = move_carrier.MovePlan(97, False, home=True)
+        move_1_plan = move_carrier.MovePlan(97, False, as_move_1=True)
+        home = {move_carrier.wire_form(request) for request in move_carrier.permitted_requests(home_plan)}
+        move_1 = {move_carrier.wire_form(request) for request in move_carrier.permitted_requests(move_1_plan)}
+        self.assertEqual(home - move_1, {move_carrier.wire_form(request) for request in
+                                         (move_carrier.home_block(97), move_carrier.HOME_CUT_MOTOR_POWER,
+                                          move_carrier.BACKSCAN_READ)})
+        self.assertEqual(move_1 - home, {move_carrier.wire_form(move_carrier.move_1_block(97))})
+        self.assertIn(move_carrier.wire_form(move_carrier.CUT_MOTOR_POWER), home)
+
+    def test_requests_off_the_home_path_are_refused(self):
+        home_plan = move_carrier.MovePlan(97, False, home=True, register_33_read=0x1C)
+        move_carrier.check_allowed(move_carrier.home_block(97), home_plan)
+        for request in (move_carrier.move_1_block(97), move_carrier.home_block(98),
+                        move_carrier.single_write(0, 0x02, 0x1C), move_carrier.single_write(0, 0x02, 0x04),
+                        move_carrier.BACKSCAN_SET, move_carrier.LAMP_AS_CAPTURED, move_carrier.feed_block(97),
+                        move_carrier.BEFORE_WRITE_0X02, move_carrier.TABLE_UPLOADS[0][1],
+                        move_carrier.REGISTER_STATE_WRITES[0], move_carrier.register_33_write(6459, 0x3C)):
+            with self.subTest(variant="home", request=request.kind, sent=request.sent[:6].hex()):
+                assert_refused(self, request, home_plan)
+        for plan in (move_carrier.MovePlan(97, False, as_move_1=True), move_carrier.MovePlan(97, False),
+                     move_carrier.MovePlan(97, True, lamp=True)):
+            for request in (move_carrier.home_block(97), move_carrier.HOME_CUT_MOTOR_POWER,
+                            move_carrier.BACKSCAN_READ):
+                with self.subTest(variant="other", plan=plan, request=request.kind):
+                    assert_refused(self, request, plan)
+
+    def test_table_hash_mismatch_sends_nothing_and_exits_24(self):
+        uploads = list(move_carrier.TABLE_UPLOADS_MOVE_1)
+        header, upload, status = uploads[0]
+        uploads[0] = (header, dataclasses.replace(upload, sent=move_carrier.SLOPE_TABLE), status)
+        scanner = FakeScanner(HOME_REACHED_BY_ITSELF)
+        with unittest.mock.patch.object(move_carrier, "TABLE_UPLOADS_MOVE_1", tuple(uploads)):
+            exit_code, _ = run_move(scanner, home=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_TABLE_HASH)
+        self.assertEqual(scanner.transfers, [])
+
+    def test_other_variants_and_lamp_are_refused_with_home(self):
+        self.assertTrue(move_carrier.parse_arguments(["logs", "--home"]).home)
+        self.assertFalse(move_carrier.parse_arguments(["logs"]).home)
+        for flag in ("--as-move-1", "--backscan", "--lamp-as-captured"):
+            with self.subTest(flag=flag):
+                for order in (["logs", "--home", flag], ["logs", flag, "--home"]):
+                    with contextlib.redirect_stderr(io.StringIO()) as error_output:
+                        with self.assertRaises(SystemExit) as raised:
+                            move_carrier.parse_arguments(order)
+                    self.assertEqual(raised.exception.code, 2)
+                    self.assertIn(f"--home with {flag}", error_output.getvalue())
+
+    def test_exit_codes(self):
+        self.assertEqual((move_carrier.EXIT_HOME_NOT_REACHED, move_carrier.EXIT_ALREADY_HOME), (25, 26))
+        others = (move_carrier.EXIT_GOOD, flash_dump.EXIT_NOT_FOUND, move_carrier.EXIT_USB_ERROR,
+                  move_carrier.EXIT_PROBE_ACTIVE, move_carrier.EXIT_WRONG_CHIP, move_carrier.EXIT_OPEN_NOT_SENT,
+                  move_carrier.EXIT_MOTOR_TIMEOUT, move_carrier.EXIT_TABLE_HASH)
+        self.assertFalse({25, 26} & set(others))
+
+    def test_main_logs_home_in_the_plan_record(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        scanner = FakeScanner({**HOME_UNIT_REGISTERS, 0x101: 0xDC})
+        with unittest.mock.patch.object(sys, "argv", ["move_carrier.py", directory.name, "--home", "--steps", "500"]), \
+                unittest.mock.patch.object(move_carrier, "find_scanner", return_value=scanner), \
+                unittest.mock.patch.object(move_carrier, "refusal_exit_code", return_value=None), \
+                contextlib.redirect_stdout(io.StringIO()):
+            exit_code = move_carrier.main()
+        self.assertEqual(exit_code, move_carrier.EXIT_ALREADY_HOME)
+        log_path, = pathlib.Path(directory.name).glob("*/log.jsonl")
+        device = json.loads(log_path.read_text().splitlines()[0])
+        self.assertEqual((device["kind"], device["home"], device["as_move_1"], device["steps"]),
+                         ("device", True, False, 500))
 
 
 if __name__ == "__main__":

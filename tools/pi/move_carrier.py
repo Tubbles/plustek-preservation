@@ -10,7 +10,8 @@ doc/work/0011-first-motor-move.md. The steps below are those of move 3.
 "--as-move-1" further down says what changes for move 1.
 
 Sequence:
-1. Read 0x101, 0x31, 0x33, 0x36 and 0x02 and log them.
+1. Read 0x101, 0x31, 0x33, 0x36 and 0x02 (and 0x09 with --home) and log
+   them.
 2. Gate: the run goes on only when 0x101 has PWRBIT (bit 7) set and
    MOTORENB (bit 0) clear and 0x36 reads 0xfe. Otherwise it logs a
    "refused" record and exits 22 before any OUT transfer. On the owner's
@@ -87,7 +88,7 @@ the capture has no move with BACKSCAN that starts off the home sensor
 variant writes 0x09, and the gate does not read it: a --backscan run
 that stopped between its two 0x09 writes leaves bit 3 set for the next
 run of the same wake, until the open writes 0x09 = 0x00 again (frame
-17).
+17). Only the gate of --home reads it.
 
 --as-move-1 replays the vendor's move 1 instead, with FEEDL from --steps
 (doc/protocol/of120-moves.md, "Move 1 (frames 6257 to 6344)"). Steps 1,
@@ -122,14 +123,83 @@ against 0xff) and the lamp (0x03 = 0x30 against 0x00), FEEDL being
 --as-move-1 (argparse error, exit 2): the capture has no move 1 with
 BACKSCAN, and the block switches the lamp on itself.
 
+--home drives the carrier back to the home sensor with the transfers of
+--as-move-1 and one bit changed: the 27-pair block of frame 6259 writes
+0x02 = 0x1c in place of 0x18, MTRREV (0x02 bit 2,
+doc/protocol/gl128-registers.md) set beside MTRPWR and FASTFED. The block
+is the only write of 0x02 before the start, as REGISTER_STATE_MOVE_1
+leaves 0x02 out. Nothing else changes: not 0x09 (BACKSCAN), not 0x33
+(its bit 5 selects the loader drive), not the table, not the lamp. FEEDL
+comes from --steps and is the maximum travel. A move that nothing stops
+runs FEEDL plus two ramps of FMOVNO = 127 steps, 254 steps more
+(inference, doc/protocol/playbook.md, "Moves and homing", part 3). So
+after one outbound move with --steps N, the same N brings the carrier
+back to where it started, on the sensor, and a margin on top covers lost
+steps. Step 5 polls as above and ends on the first of:
+  HOMESNR set: the sensor is reached. With MOTORENB still set in that
+  read the tool sends the cut of step 6 and polls until MOTORENB clears
+  (at most 5 s). With MOTORENB already clear the ASIC stopped by itself
+  and no cut is sent. A "home_reached" record says which.
+  MOTORENB clear with HOMESNR clear: the move ran its full length without
+  reaching the sensor (wrong direction, or too few steps). No cut, a
+  "home_not_reached" record, exit 25.
+  The poll limit passed: the cut, exit 23, as for the other variants.
+The cut of --home writes 0x02 = 0x0c in place of 0x08, MTRPWR cleared
+and MTRREV kept, then FEEDL = 1 as captured: CAsic::MoveWithDetectSensor
+(0x05ca90) cuts its moves by writing 0x02 from the shadow with only
+MTRPWR cleared, and clears MTRREV in the shadow only after WaitMotorStop.
+So the direction bit does not change while the motor may still step,
+unless the 5 s after the cut pass with MOTORENB still set (then step 7
+clears it anyway). Step 7 is that of move 1, whose 0x02 = 0x08 clears MTRREV after MOTORENB
+has cleared or the 5 s after the cut have passed, so the last write of
+0x02 leaves it clear after each of the three. A run that stops with exit
+13 between the start write and the cut sends neither the cut nor step 7,
+so the reversed move runs its full length, at most --steps plus the
+ramps, as an --as-move-1 run that stops there does. After an
+acknowledged cut 0x02 reads 0x0c until step 7. A stop between the block
+and the start write leaves 0x02 = 0x1c without a move, until the next run's block or
+the open's 0x02 = 0x78. Exit 0 needs 0x101 as read in step 8 to show
+HOMESNR set and MOTORENB clear. Otherwise the run exits 23 with MOTORENB
+set and 25 with HOMESNR clear. Steps 1 and 8 also read 0x09 for --home,
+with vendor_open.read_register's framing and 0x55 check but through
+check_allowed, as vendor_open.read_register does not read 0x09. The gate
+has two more checks for --home. With 0x09 bit 3 set, which a --backscan
+run that stopped between its two 0x09 writes leaves behind, the run is
+refused with exit 22: the direction with both BACKSCAN and MTRREV set is
+not known. With HOMESNR set before the move the run is refused with exit
+26, nothing to do, as CAsic::HomeCarriage returns at once when IsHome()
+is true. When another check fails as well, the exit is 22. --backscan,
+--lamp-as-captured and --as-move-1 are refused with --home (argparse
+error, exit 2).
+
+Sources of --home: CAsic::HomeCarriage (0x056bb0) calls
+CAsic::MoveCarriage (0x0545d0) with HomeCarriageStep, six inches back,
+when the carrier is off home and the motor idle. MoveCarriage sets
+MTRPWR and FASTFED, clears ACDCDIS, NOTHOME and AGOHOME, and sets MTRREV
+for a negative distance, which 0x1c matches. HomeCarriage then only
+waits for the motor with WaitMotorStop(1500) and asks for no stop at the
+sensor (doc/protocol/playbook.md, "Moves and homing", part 1).
+WaitMotorStop counts with _TickCount, an imported stub, and the engine
+links Carbon, whose TickCount counts sixtieths of a second, so the wait
+is up to 25 s.
+Neither function asks the ASIC for a stop at the sensor, so whether a
+reverse move ends at HOMESNR by itself (NOTHOME clear) is not known from
+the engine, and the tool stops the move when the sensor trips. The capture
+has no move with MTRREV, and HomeCarriage is not in this model's flow
+(the same part 1): this is the engine's generic homing applied to this
+unit, carried by the transfers of move 1, the only carrier drive move
+the owner's unit has run, and not a replay.
+
 Safety, checked before every transfer: check_allowed lets through only
 the OUT requests, link checks and reads at wIndex 0x18 listed above for
 the variant of the run, with its --steps and --backscan. A 0x33 write
 other than the fixed one (frame 6445, or 6085 for move 1) may differ from
 the last value read from 0x33 in bit 5 only, and a move 1 run reads 0x33
 only in steps 1 and 8. Register reads go through vendor_open.read_register
-and only for the registers of step 1. Anything else raises before the
-transfer. There is no flash request, no interrupt read and no other write.
+and only for the registers of step 1, apart from the read of 0x09 of
+--home, which check_allowed lets through for --home only. Anything else
+raises before the transfer. There is no flash request, no interrupt read
+and no other write.
 The allow-list checks content, not order: the order is that of the code,
 which runs straight through, and test_move_carrier.py checks the exact
 sequence. Before the first transfer, the table payloads the run will send
@@ -141,11 +211,13 @@ does not run, and vendor_open.py has run since the wake and has finished
 would land between the move's requests). The film holder stays out of the
 unit and the owner stays at the power switch. The direction is decided
 beforehand: without --backscan the carrier moves away from the home
-sensor (inference, doc/protocol/of120-moves.md, "Direction"). The tool
-refuses to start while the file is missing or a probe_readonly.py,
-keep_awake.py, vendor_open.py, flash_dump.py, eeprom_read.py,
-snapshot.py or other move_carrier.py process runs. Each run needs the
-owner's go-ahead.
+sensor (inference, doc/protocol/of120-moves.md, "Direction"). With
+--home it is expected to move toward it (MTRREV, as
+CAsic::HomeCarriage does).
+The tool refuses to start while the file is missing or a
+probe_readonly.py, keep_awake.py, vendor_open.py, flash_dump.py,
+eeprom_read.py, snapshot.py or other move_carrier.py process runs. Each
+run needs the owner's go-ahead.
 
 Every run writes LOG_DIRECTORY/<UTC stamp>/log.jsonl: one line per request
 (kind, the capture frame it replays, setup fields, bytes sent or the
@@ -153,19 +225,23 @@ SHA-256 of the table, bytes received, the captured answer where the
 capture has one), one per link check, one per poll.
 
 Exit codes (1 and 2 are left to Python and argparse): 0 MOTORENB cleared
-within the poll limit and every write after the move was acknowledged, 10
-scanner not found, 13 USB error, short transfer, link byte other than
-0x55, read at wIndex 0x18 other than 0x02 or refused request (the log
-names the request), 16 probe-disabled missing or another scanner tool
-running, 19 bcdDevice other than 0x0702, 22 the gate refused the run
-(PWRBIT clear, MOTORENB set or 0x36 other than 0xfe, no OUT transfer
-sent), 23 MOTORENB still set when the poll limit passed (the cut and the
-writes of step 7 were sent), 24 a table payload does not match its
-SHA-256 (nothing sent).
+within the poll limit and every write after the move was acknowledged
+(with --home: the home sensor reached, and HOMESNR set and MOTORENB clear
+at the end), 10 scanner not found, 13 USB error, short transfer, link
+byte other than 0x55, read at wIndex 0x18 other than 0x02 or refused
+request (the log names the request), 16 probe-disabled missing or
+another scanner tool running, 19 bcdDevice other than 0x0702, 22 the
+gate refused the run (PWRBIT clear, MOTORENB set, 0x36 other than 0xfe,
+or with --home 0x09 bit 3 set, no OUT transfer sent), 23 MOTORENB still
+set when the poll limit passed (the cut and the writes of step 7 were
+sent), or with --home still set at the end, 24 a table payload does not
+match its SHA-256 (nothing sent), 25 --home: MOTORENB cleared with
+HOMESNR clear (the writes of step 7 were sent), or HOMESNR clear at the
+end, 26 --home: HOMESNR set before the move (no OUT transfer sent).
 
 Usage (on the Pi):
     sudo ~/plustek-preservation/venv/bin/python move_carrier.py LOG_DIRECTORY [--steps N] [--backscan]
-        [--poll-limit-seconds S] [--lamp-as-captured] [--as-move-1]
+        [--poll-limit-seconds S] [--lamp-as-captured] [--as-move-1 | --home]
 """
 
 import argparse
@@ -200,6 +276,9 @@ PWRBIT = 0x80
 GPIO_OUTPUT_ENABLE_REGISTER = 0x36
 OPEN_GPIO_OUTPUT_ENABLE = 0xFE  # written at frame 115, the open's last GPIO output enable
 REGISTER_33_MOVE_BIT = 0x20  # set for moves 2, 3 and both moves with BACKSCAN, by read-modify-write
+MOTOR_REVERSE_BIT = 0x04  # MTRREV, 0x02 bit 2 (doc/protocol/gl128-registers.md), set by --home only
+BACKSCAN_REGISTER = 0x09
+BACKSCAN_BIT = 0x08
 LOGGED_REGISTERS = (STATUS_REGISTER, 0x31, 0x33, GPIO_OUTPUT_ENABLE_REGISTER, 0x02)
 DEFAULT_STEPS = 97
 MAXIMUM_STEPS = 10158  # FEEDL of the vendor's move 1 (frame 6259), the longest blind move from home in the capture
@@ -213,6 +292,8 @@ CONFLICTING_TOOL_NAMES = (b"vendor_open.py", b"move_carrier.py", b"flash_dump.py
 EXIT_OPEN_NOT_SENT = 22
 EXIT_MOTOR_TIMEOUT = 23
 EXIT_TABLE_HASH = 24
+EXIT_HOME_NOT_REACHED = 25
+EXIT_ALREADY_HOME = 26
 
 # Registers whose value at the start write of move 3 (capture frame 6483) differs from the value OPEN_SEQUENCE
 # leaves, as (register, value) in ascending order. test_move_carrier.py rebuilds this from the capture.
@@ -327,6 +408,7 @@ class MovePlan:
     backscan: bool
     lamp: bool = False
     as_move_1: bool = False
+    home: bool = False
     register_33_read: typing.Optional[int] = None
 
 
@@ -401,6 +483,26 @@ def move_1_block(steps: int) -> Request:
     return block_with_feedl(6259, MOVE_1_BLOCK_CAPTURED, MOVE_1_FEEDL_VALUE_POSITIONS, steps)
 
 
+def with_motor_reverse(pairs: bytes) -> bytes:
+    """The register pairs with MTRREV set in every value of 0x02."""
+    result = bytearray(pairs)
+    for position in range(0, len(result), 2):
+        if result[position] == 0x02:
+            result[position + 1] |= MOTOR_REVERSE_BIT
+    return bytes(result)
+
+
+def home_block(steps: int) -> Request:
+    """The 27 pairs of frame 6259 with FEEDL set to steps and MTRREV set (0x02 = 0x1c in place of 0x18)."""
+    block = move_1_block(steps)
+    return dataclasses.replace(block, sent=with_motor_reverse(block.sent))
+
+
+def move_1_path_block(plan: MovePlan) -> Request:
+    """The block a run on the move 1 path sends: with MTRREV for --home, as captured otherwise."""
+    return home_block(plan.steps) if plan.home else move_1_block(plan.steps)
+
+
 def split_low_and_high_registers(pairs: tuple) -> list:
     """(wValue, pairs) for the registers below 0x100 and for those from 0x100 up, empty groups left out."""
     low = [(register, value) for register, value in pairs if register <= 0xFF]
@@ -455,6 +557,10 @@ TABLE_UPLOADS_MOVE_1 = (
      upload_status_read(6277)))
 START_MOVE_1 = single_write(6279, 0x0F, 0x01)
 MOVE_1_READ_0X101 = RegisterRead(6327, STATUS_REGISTER, 0xF4)  # the last read of 0x101 in move 1
+# --home: the cut keeps MTRREV, as CAsic::MoveWithDetectSensor's cut writes 0x02 with only MTRPWR cleared, and 0x09
+# is read in steps 1 and 8 with vendor_open.read_register's framing, which does not read it itself.
+HOME_CUT_MOTOR_POWER = register_write(6287, bytes([0x02, CUT_MOTOR_POWER.sent[1] | MOTOR_REVERSE_BIT]))
+BACKSCAN_READ = Request("register_read", None, VENDOR_IN, 0x04, 0x008E, 0x22 + (BACKSCAN_REGISTER << 8), length=2)
 
 REQUEST_ERRORS = (usb.core.USBError, PermissionError, ShortTransferError, LinkByteError, UnexpectedAnswerError)
 
@@ -474,14 +580,19 @@ def permitted_register_33_writes(register_33_read: typing.Optional[int]) -> list
 
 
 def permitted_move_1_requests(plan: MovePlan) -> list:
-    """Move 1 has no 0x02 = 0x58, no 0x0a write, no read-modify-write of 0x33, no BACKSCAN and no lone lamp-on."""
-    return [LINK_CHECK, *REGISTER_STATE_MOVE_1_WRITES, AFE_WRITE, REGISTER_33_BEFORE_MOVE_1, move_1_block(plan.steps),
-            *(request for upload in TABLE_UPLOADS_MOVE_1 for request in upload), START_MOVE_1, CUT_MOTOR_POWER,
-            CUT_FEEDL, LAMP_OFF]
+    """Move 1 has no 0x02 = 0x58, no 0x0a write, no read-modify-write of 0x33, no BACKSCAN and no lone lamp-on.
+
+    --home has the same list with its own block in place of move 1's, plus its cut (0x02 = 0x0c) and the read of
+    0x09. CUT_MOTOR_POWER stays in it as the write of step 7.
+    """
+    requests = [LINK_CHECK, *REGISTER_STATE_MOVE_1_WRITES, AFE_WRITE, REGISTER_33_BEFORE_MOVE_1,
+                move_1_path_block(plan), *(request for upload in TABLE_UPLOADS_MOVE_1 for request in upload),
+                START_MOVE_1, CUT_MOTOR_POWER, CUT_FEEDL, LAMP_OFF]
+    return requests + ([HOME_CUT_MOTOR_POWER, BACKSCAN_READ] if plan.home else [])
 
 
 def permitted_requests(plan: MovePlan) -> list:
-    if plan.as_move_1:
+    if plan.as_move_1 or plan.home:
         return permitted_move_1_requests(plan)
     requests = [LINK_CHECK, *REGISTER_STATE_WRITES, AFE_WRITE, REGISTER_33_RESET, BEFORE_WRITE_0X02,
                 BEFORE_WRITE_0X0A, feed_block(plan.steps), *(request for upload in TABLE_UPLOADS for request in upload),
@@ -539,8 +650,17 @@ def read_captured_register(session: Session, read: RegisterRead) -> int:
     return value
 
 
-def read_logged_registers(session: Session, kind: str) -> dict:
+def read_backscan_register(session: Session, plan: MovePlan) -> int:
+    """0x09 for --home, framed and checked for 0x55 as vendor_open.read_register does, through check_allowed."""
+    answer = transfer(session, plan, BACKSCAN_READ)
+    require_link_byte(answer[1], f"register 0x{BACKSCAN_REGISTER:02x}")
+    return answer[0]
+
+
+def read_logged_registers(session: Session, plan: MovePlan, kind: str) -> dict:
     values = {register: read_register(session, register, kind, None) for register in LOGGED_REGISTERS}
+    if plan.home:
+        values[BACKSCAN_REGISTER] = read_backscan_register(session, plan)
     log(session, {"kind": kind, **{f"0x{register:02x}": f"{value:02x}" for register, value in values.items()}})
     return values
 
@@ -590,6 +710,29 @@ def gate_refusal_reasons(registers: dict) -> list:
     return [reason for passed, reason in checks if not passed]
 
 
+def home_gate_refusal_reasons(registers: dict) -> list:
+    """The --home addition to the gate: CAsic::HomeCarriage returns at once when IsHome() is true."""
+    if registers[STATUS_REGISTER] & HOMESNR_BIT:
+        return ["HOMESNR set: the carrier is at home, nothing to do"]
+    return []
+
+
+def backscan_left_reasons(registers: dict) -> list:
+    """For --home: a --backscan run that stopped between its 0x09 writes leaves bit 3 set, a direction not known."""
+    if registers[BACKSCAN_REGISTER] & BACKSCAN_BIT:
+        return ["0x09 bit 3 set: BACKSCAN left from an earlier run"]
+    return []
+
+
+def gate_refusal(registers: dict, plan: MovePlan) -> typing.Optional[tuple]:
+    """(exit code, reasons) when the gate refuses the run, None when it may go on. Exit 26 only for HOMESNR alone."""
+    blocking = gate_refusal_reasons(registers) + (backscan_left_reasons(registers) if plan.home else [])
+    at_home = home_gate_refusal_reasons(registers) if plan.home else []
+    if not blocking + at_home:
+        return None
+    return (EXIT_OPEN_NOT_SENT if blocking else EXIT_ALREADY_HOME), blocking + at_home
+
+
 def set_register_state(session: Session, plan: MovePlan) -> None:
     for request in (*REGISTER_STATE_WRITES, AFE_WRITE):
         send_write(session, plan, request)
@@ -622,24 +765,41 @@ def poll_log_record(window: PollWindow, now: float, status: int) -> dict:
             "0x101": f"{status:02x}", "homesnr": bool(status & HOMESNR_BIT), "motorenb": bool(status & MOTORENB_BIT)}
 
 
-def poll_until_motor_stops(session: Session, environment: Environment, window: PollWindow) -> bool:
-    """Read 0x101 on the window's grid. True when MOTORENB clears, False when the window's limit has passed."""
+def poll_until(session: Session, environment: Environment, window: PollWindow,
+               ends_polls: typing.Callable[[int], bool]) -> typing.Optional[int]:
+    """Read 0x101 on the window's grid. The value that ended the polls, None when the window's limit has passed."""
     poll_number = 0
     while True:
         wait_until(environment, window.first_poll + poll_number * POLL_INTERVAL_SECONDS)
         now = environment.monotonic()
         status = read_register(session, STATUS_REGISTER, f"poll_{window.phase}", None)
         log(session, poll_log_record(window, now, status))
-        if not status & MOTORENB_BIT:
-            return True
+        if ends_polls(status):
+            return status
         if now - window.first_poll >= window.limit_seconds:
-            return False
+            return None
         poll_number += 1
 
 
+def motor_stopped(status: int) -> bool:
+    return not status & MOTORENB_BIT
+
+
+def home_reached_or_motor_stopped(status: int) -> bool:
+    return bool(status & HOMESNR_BIT) or motor_stopped(status)
+
+
+def poll_until_motor_stops(session: Session, environment: Environment, window: PollWindow) -> bool:
+    """Read 0x101 on the window's grid. True when MOTORENB clears, False when the window's limit has passed."""
+    return poll_until(session, environment, window, motor_stopped) is not None
+
+
 def cut_move(session: Session, environment: Environment, plan: MovePlan, move_start: float) -> bool:
-    """Frames 6287 and 6291, the vendor's cut of moves 1 and 2, then polls until MOTORENB clears."""
-    send_write(session, plan, CUT_MOTOR_POWER)
+    """Frames 6287 and 6291, the vendor's cut of moves 1 and 2, then polls until MOTORENB clears.
+
+    For --home the first write keeps MTRREV (0x02 = 0x0c), as the engine's cut of a reverse move does.
+    """
+    send_write(session, plan, HOME_CUT_MOTOR_POWER if plan.home else CUT_MOTOR_POWER)
     send_write(session, plan, CUT_FEEDL)
     window = PollWindow("after_cut", move_start, environment.monotonic(), AFTER_CUT_POLL_LIMIT_SECONDS)
     return poll_until_motor_stops(session, environment, window)
@@ -681,15 +841,18 @@ def run_motor(session: Session, environment: Environment, plan: MovePlan, start:
 
 
 def move(session: Session, environment: Environment, plan: MovePlan, poll_limit_seconds: float) -> int:
-    before = read_logged_registers(session, "registers_before")
-    reasons = gate_refusal_reasons(before)
-    if reasons:
+    before = read_logged_registers(session, plan, "registers_before")
+    refusal = gate_refusal(before, plan)
+    if refusal is not None:
+        exit_code, reasons = refusal
         log(session, {"kind": "refused", "0x101": f"{before[STATUS_REGISTER]:02x}",
                       "0x36": f"{before[GPIO_OUTPUT_ENABLE_REGISTER]:02x}", "reason": ", ".join(reasons)})
-        return EXIT_OPEN_NOT_SENT
+        return exit_code
+    if plan.home:
+        return move_home(session, environment, plan, poll_limit_seconds)
     stopped = (move_1(session, environment, plan, poll_limit_seconds) if plan.as_move_1
                else move_3(session, environment, plan, poll_limit_seconds))
-    read_logged_registers(session, "registers_after")
+    read_logged_registers(session, plan, "registers_after")
     return EXIT_GOOD if stopped else EXIT_MOTOR_TIMEOUT
 
 
@@ -703,14 +866,67 @@ def move_3(session: Session, environment: Environment, plan: MovePlan, poll_limi
     return stopped
 
 
-def move_1(session: Session, environment: Environment, plan: MovePlan, poll_limit_seconds: float) -> bool:
-    """Steps 3 to 7 for move 1, frames 6259 to 6283 with the state and 0x33 they start from."""
-    for request in (*REGISTER_STATE_MOVE_1_WRITES, AFE_WRITE, REGISTER_33_BEFORE_MOVE_1, move_1_block(plan.steps)):
+def prepare_move_1(session: Session, plan: MovePlan) -> None:
+    """Steps 3 and 4 for move 1 and --home: the state, 0x33, the block (move_1_path_block) and the table pair."""
+    for request in (*REGISTER_STATE_MOVE_1_WRITES, AFE_WRITE, REGISTER_33_BEFORE_MOVE_1, move_1_path_block(plan)):
         send_write(session, plan, request)
     upload_tables(session, plan, TABLE_UPLOADS_MOVE_1)
+
+
+def move_1(session: Session, environment: Environment, plan: MovePlan, poll_limit_seconds: float) -> bool:
+    """Steps 3 to 7 for move 1, frames 6259 to 6283 with the state and 0x33 they start from."""
+    prepare_move_1(session, plan)
     stopped = run_motor(session, environment, plan, START_MOVE_1, poll_limit_seconds)
     finish_move_1(session, plan)
     return stopped
+
+
+def stop_at_home(session: Session, environment: Environment, plan: MovePlan, move_start: float,
+                 status: int) -> None:
+    """HOMESNR set: the vendor's cut while MOTORENB is still set, none when the ASIC stopped by itself."""
+    seconds_since_start = round(environment.monotonic() - move_start, 4)
+    cut_sent = bool(status & MOTORENB_BIT)
+    cleared_after_cut = cut_move(session, environment, plan, move_start) if cut_sent else None
+    log(session, {"kind": "home_reached", "seconds_since_start": seconds_since_start, "0x101": f"{status:02x}",
+                  "cut_sent": cut_sent, "motorenb_cleared_after_cut": cleared_after_cut})
+
+
+def run_home_motor(session: Session, environment: Environment, plan: MovePlan, poll_limit_seconds: float) -> int:
+    """The start write and the polls of --home with its three end conditions. The exit code they give."""
+    move_start = environment.monotonic()
+    send_write(session, plan, START_MOVE_1)
+    status = poll_until(session, environment, PollWindow("move", move_start, move_start, poll_limit_seconds),
+                        home_reached_or_motor_stopped)
+    if status is None:
+        cleared_after_cut = cut_move(session, environment, plan, move_start)
+        log(session, {"kind": "move_end", "motorenb_cleared_within_limit": False, "cut_sent": True,
+                      "motorenb_cleared_after_cut": cleared_after_cut,
+                      "seconds_since_start": round(environment.monotonic() - move_start, 4)})
+        return EXIT_MOTOR_TIMEOUT
+    if status & HOMESNR_BIT:
+        stop_at_home(session, environment, plan, move_start, status)
+        return EXIT_GOOD
+    log(session, {"kind": "home_not_reached", "seconds_since_start": round(environment.monotonic() - move_start, 4),
+                  "0x101": f"{status:02x}", "cut_sent": False})
+    return EXIT_HOME_NOT_REACHED
+
+
+def home_exit_code(move_exit_code: int, status_after: int) -> int:
+    """Exit 0 only when 0x101 read at the end has HOMESNR set and MOTORENB clear."""
+    if move_exit_code != EXIT_GOOD:
+        return move_exit_code
+    if status_after & MOTORENB_BIT:
+        return EXIT_MOTOR_TIMEOUT
+    return EXIT_GOOD if status_after & HOMESNR_BIT else EXIT_HOME_NOT_REACHED
+
+
+def move_home(session: Session, environment: Environment, plan: MovePlan, poll_limit_seconds: float) -> int:
+    """Steps 3 to 8 for --home: move 1's transfers with MTRREV, ended at the home sensor. The exit code."""
+    prepare_move_1(session, plan)
+    move_exit_code = run_home_motor(session, environment, plan, poll_limit_seconds)
+    finish_move_1(session, plan)
+    after = read_logged_registers(session, plan, "registers_after")
+    return home_exit_code(move_exit_code, after[STATUS_REGISTER])
 
 
 def tables_match_hash(uploads: tuple, table_sha256: str) -> bool:
@@ -719,15 +935,16 @@ def tables_match_hash(uploads: tuple, table_sha256: str) -> bool:
 
 
 def run(session: Session, environment: Environment, steps: int = DEFAULT_STEPS, backscan: bool = False,
-        poll_limit_seconds: float = DEFAULT_POLL_LIMIT_SECONDS, lamp: bool = False, as_move_1: bool = False) -> int:
+        poll_limit_seconds: float = DEFAULT_POLL_LIMIT_SECONDS, lamp: bool = False, as_move_1: bool = False,
+        home: bool = False) -> int:
     """move() after the table check, with errors logged and mapped to an exit code."""
-    uploads, table_sha256 = ((TABLE_UPLOADS_MOVE_1, SLOPE_TABLE_MOVE_1_SHA256) if as_move_1
+    uploads, table_sha256 = ((TABLE_UPLOADS_MOVE_1, SLOPE_TABLE_MOVE_1_SHA256) if as_move_1 or home
                              else (TABLE_UPLOADS, SLOPE_TABLE_SHA256))
     if not tables_match_hash(uploads, table_sha256):
         log(session, {"kind": "refused", "reason": f"a table payload's SHA-256 is not {table_sha256}"})
         exit_code = EXIT_TABLE_HASH
     else:
-        exit_code = move_with_errors_logged(session, environment, MovePlan(steps, backscan, lamp, as_move_1),
+        exit_code = move_with_errors_logged(session, environment, MovePlan(steps, backscan, lamp, as_move_1, home),
                                             poll_limit_seconds)
     log(session, {"kind": "exit", "code": exit_code})
     return exit_code
@@ -801,7 +1018,8 @@ def poll_limit_argument(text: str) -> float:
 
 def argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Move the film holder carrier once, as the vendor's move 3 "
-                                                 "(or move 1 with --as-move-1).")
+                                                 "(or move 1 with --as-move-1, or move 1 reversed toward the home "
+                                                 "sensor with --home).")
     parser.add_argument("log_directory", type=pathlib.Path)
     parser.add_argument("--steps", type=steps_argument, default=DEFAULT_STEPS,
                         help=f"FEEDL, 1 to {MAXIMUM_STEPS} (default {DEFAULT_STEPS}, as the vendor's move 3; "
@@ -819,6 +1037,15 @@ def argument_parser() -> argparse.ArgumentParser:
                         help="replay the vendor's move 1 (frames 6259 to 6283, table slope-6267) instead of move 3, "
                              "with FEEDL from --steps. Its block switches the lamp on, and the run switches it off "
                              "at the end. Not with --backscan or --lamp-as-captured")
+    parser.add_argument("--home", action="store_true",
+                        help="move the carrier back to the home sensor: the transfers of --as-move-1 with MTRREV "
+                             "(0x02 bit 2) set, ended with the vendor's cut (0x02 = 0x0c, MTRREV kept) when HOMESNR "
+                             "sets. --steps is the FEEDL of the return: if nothing stops it, the move runs --steps "
+                             "plus 254 ramp steps (inference). After one outbound move with --steps N, the same N "
+                             "brings the carrier back to where it started, on the sensor, and a margin covers lost "
+                             "steps. "
+                             "Refused when HOMESNR or 0x09 bit 3 is already set. Not with --as-move-1, --backscan "
+                             "or --lamp-as-captured")
     return parser
 
 
@@ -828,6 +1055,12 @@ def option_conflict(arguments: argparse.Namespace) -> typing.Optional[str]:
         return "--as-move-1 with --backscan: the capture has no move 1 with BACKSCAN"
     if arguments.as_move_1 and arguments.lamp:
         return "--as-move-1 with --lamp-as-captured: the block of frame 6259 switches the lamp on itself"
+    if arguments.home and arguments.as_move_1:
+        return "--home with --as-move-1: --home sends the transfers of move 1 already, with MTRREV set"
+    if arguments.home and arguments.backscan:
+        return "--home with --backscan: --home reverses with MTRREV, as CAsic::MoveCarriage does, and leaves 0x09 alone"
+    if arguments.home and arguments.lamp:
+        return "--home with --lamp-as-captured: the block of frame 6259 switches the lamp on itself"
     return None
 
 
@@ -861,9 +1094,9 @@ def main() -> int:
                       "product_id": f"{device.idProduct:04x}", "bcd_device": f"{device.bcdDevice:04x}",
                       "steps": arguments.steps, "backscan": arguments.backscan,
                       "poll_limit_seconds": arguments.poll_limit_seconds, "lamp": arguments.lamp,
-                      "as_move_1": arguments.as_move_1})
+                      "as_move_1": arguments.as_move_1, "home": arguments.home})
         return run(session, Environment(), arguments.steps, arguments.backscan, arguments.poll_limit_seconds,
-                   arguments.lamp, arguments.as_move_1)
+                   arguments.lamp, arguments.as_move_1, arguments.home)
 
 
 if __name__ == "__main__":
