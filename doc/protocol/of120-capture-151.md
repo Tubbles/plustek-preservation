@@ -88,7 +88,7 @@ Partly.
 | 15479-15532 | 301.907 to 318.004 | Idle, register `0x31` read 27 times. |
 | 15533-15878 | 318.004 to 320.279 | Lamp `0x03 = 0x00`, `0x31` bit 7 cleared, `0x02 = 0x30`, a move with `0x09 = 0x08` and FEEDL 961, `0x09 = 0x00`, `0x02 = 0x18`, `0x31 = 0x3b`. The capture ends. *(inference: the holder is moved out)* |
 
-Two positioning facts tie the moves to the film holder *(inference)*: the last positioning move differs between the two images (5592 and 37449 steps, consistent with two frames of one strip), and the second move of each cycle is 980 steps, the value of `FilmLoaderOrigin = 0,980` in the OpticFilm 120 configuration of Plustek's macOS driver (`ScanInfoVID_07B3_PID_1406.plist` lines 96 to 97, see "Non-volatile storage").
+Two positioning facts tie the moves to the film holder *(inference)*: the last positioning move differs between the two images (5592 and 37449 steps, consistent with two frames of one strip), and the third move of each cycle is the engine's move to `FilmLoaderOrigin = 0,980` of the OpticFilm 120 configuration of Plustek's macOS driver (`ScanInfoVID_07B3_PID_1406.plist` lines 96 to 97, see "Non-volatile storage"): 0.98 inch, 607 steps on the loader drive, FEEDL 97 plus the ramps (`playbook.md`, "Moves and homing", part 2). The second move's FEEDL of 980 steps is a coincidence of the numbers: it is a 2.4 inch loader sensor move, 1488 steps less the ramps, ended by the sensor event (corrected 2026-10-15).
 
 ## Boot sequence
 

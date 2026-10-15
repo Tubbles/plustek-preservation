@@ -1,10 +1,12 @@
 # Driver playbook: Plustek's engine mapped onto pyopticfilm
 
-Plustek's own driver, read as the playbook for the OpticFilm 120 (`../work/0012-driver-playbook.md`). Each section takes one topic, derives the requests from the macOS engine's code first, checks them against the issue #151 capture second, and maps them onto pyopticfilm's GL128 code third, so that the OpticFilm 120 lands in pyopticfilm as a model configuration rather than as a replay tool. Each section ends with the pyopticfilm change it implies. Topics, in the order of the work item: standby (below), then open, moves and homing, and scan. The sections "Status and flags", "Resets" and "Self tests" are the inventory of the engine's debugging facilities for `../work/0013-debugging-facilities.md`.
+Plustek's own driver, read as the playbook for the OpticFilm 120 (`../work/0012-driver-playbook.md`). Each section takes one topic, derives the requests from the macOS engine's code first, checks them against the issue #151 capture second, and maps them onto pyopticfilm's GL128 code third, so that the OpticFilm 120 lands in pyopticfilm as a model configuration rather than as a replay tool. Each section ends with the pyopticfilm change it implies. Topics, in the order of the work item: standby, open, and moves and homing (below), then scan. The sections "Status and flags", "Resets" and "Self tests" are the inventory of the engine's debugging facilities for `../work/0013-debugging-facilities.md`, and "Requests the firmware handles" lists what the owner's unit has and has not been sent.
 
 Conventions:
 
 - Addresses are offsets in the x86_64 slice of the macOS `ScanApi` 1.4.27.4.0 (`../vendor-driver/macos.md`). Decompiled functions are cited by file name and line. The files are in `work/re/decomp-x86_64/`, the disassembly in `work/re/disasm-x86_64/` (untracked, made as described in `../../tools/ghidra/README.md`).
+- The Windows V5.0.2.0 engine is cited as `FUN_<address>` by file and line in `work/re-win/decomp-x64/` (untracked, `../vendor-driver/windows.md`, "Disassembly"). The reconstructed engine source in `engine/` (private submodule, `../work/0014-decompiled-code-cleanup.md`) is cited by function name and address only.
+- Scripts named in a section (`blast_vs_plist.py` and the like) were throwaway checks run with `python3 -I` outside the repository. What each compared is stated where it is used, so that it can be redone.
 - "The plist" is `ScanInfoVID_07B3_PID_1406.plist` of the macOS package (`../vendor-driver/macos.md`, "Layout"), cited by line. It is the only configuration the engine loads for the OpticFilm 120 (`../vendor-driver/macos.md`, "Which configuration file").
 - Capture frames are those of `of120-capture-151.md` (decoded listing in `work/captures/151/annotated.txt`).
 - pyopticfilm is cited at submodule commit `32dc576` (release 1.3.5), paths relative to `pyopticfilm/src/pyopticfilm/`.
@@ -144,6 +146,147 @@ What an OpticFilm 120 model entry needs:
 
 pyopticfilm change this section implies: a standby line field on the GL128 model (unset for the 8200i SE, 8100 V2 and 8300i SE), an open hook after the blast that sends the eject-switch bits and the pulse when the field is set, a close hook that clears the bit, and a re-assert of the bit before operations. Nothing changes for the existing models. The hook's content waits for run A, so that it carries what the unit needs.
 
+## Open
+
+In short: the engine's open is the plist's register image plus a short list of values that code derives from other plist keys, and nothing in it moves the motor. The capture's blast (frames 17 to 36) is that image byte for byte and in the engine's order, so no blast value is computed. The computed values are the two clock bytes, the DRAM refresh value, the lamp-off write, the AFE defaults, and the read-modify-writes of the eject switch and the GPIO8 pulse. The Windows engine V5.0.2.0 sends one block on the first open in a process, and that block matches frames 15 to 138. The macOS engine sends the same block with a `SoftwareResetScanner` before it and a second block after it, which repeat values already set and add one write, `0x0e = 0x00`. `vendor_open.py` is the Windows first open, so the owner's unit has had the engine's open. pyopticfilm's `asic_boot` and `init` differ from it in the points of part 4, which the OpticFilm 120 entry has to carry.
+
+### 1. Where the values come from
+
+**The blast is the plist.** `CRegistry::ReadKey(NULL)` ("Standby", part 1) fills the shadow from blob `0` (plist line 8, 116 registers) and then applies the register keys in plist order (lines 9 to 30). `blast_vs_plist.py` rebuilds that image from the plist and compares it, in order, with every register pair the capture writes in frames 17 to 36 (`work/captures/151/transfers.jsonl`): 118 pairs, no difference in register, value or order. The GPIO patches `30.0f` to `3b` (lines 13 to 28) are in "Standby", part 1. The other keys:
+
+| Key (plist lines) | Blob `0` | Result | Field (`gl128-registers.md`) |
+|---|---|---|---|
+| `114`, `115` (9 to 12) | | `0x114 = 0x80`, `0x115 = 0x80`, the separate transfer of frame 33 | `BWHI`, `BWLOW` |
+| `7e`, two bytes (29 and 30) | `0x7e = 0x15`, `0x7f = 0x7c` | `0x7e = 0x75`, `0x7f = 0x30` | `LPERIOD` (`0x7d` to `0x7f`): 30000 in place of 5500 |
+
+The motion registers of the blast: `0x02 = 0x78` (`ACDCDIS`, `AGOHOME`, `MTRPWR`, `FASTFED`), `0x09 = 0x00`, `0xa0 = 0x12` (`FSTPSEL` 2, `STEPSEL` 2), FEEDL 1, `STEPNO` 32, `FWDSTEP` and `BWDSTEP` 128, `FASTNO` 48 (`tools/pi/vendor_open.py` lines 197 to 210). It sets no `FMOVNO`, no memory layout (`0xd0` to `0xf8`) and no start.
+
+**Values computed by code.** Call addresses are in `CScanApi::Register` (`0x01da80`).
+
+| Frames | Request | Engine call | Value from |
+|---|---|---|---|
+| 37 | `40 0c 008c` wIndex `0x10`, `0d` | `CAsic::SetSystemClock` (`0x05a4d0`, call `0x01e049`) | `SystemClock = 48` (plist lines 741 and 742) through `CIOUSB::SysClock` (`CAsic__SetSystemClock@0005a4d0.c` line 45). The same function sets `CLKSET` (`0x0b` bits 7 to 5) to 3 in the shadow only (line 42), which the blast's `0x0b = 0x6c` already holds |
+| 41 | `40 0c 008c` wIndex `0x13`, `0d` | `CAsic::SetAHBClock` (`0x05a870`, call `0x01e05f`) | also `SystemClock` (`CAsic__SetAHBClock@0005a870.c` line 19). The plist's `AHBClock = 60` (lines 33 and 34) is not what it reads |
+| 45 to 56 | `0x0b = 0x64`, `0x13 = 0x0f`, `0x0b = 0x6c` | `_ENBDRAM`, `_RFHSET`, `_ENBDRAM` (calls `0x01e07e` to `0x01e122`) | `ENBDRAM` (`0x0b` bit 3) cleared and set around the refresh value. The plist has no `SDramRefreshTime`, so `RFHSET` gets `0x0f` in place of the blast's `0x13 = 0x08` |
+| 57 to 72 | flash ID and the 64-byte infrared record | `SPI_init` (`0x0f6c00`, call `0x01e1b0`), `SFlash_RDID` (`0x0f6dc0`, call `0x01e1ca`), `ReadIRScalingInfo` (`0x03ae60`, call `0x01e2dc`) | `FlashRAM = 1` and `Enable_IR_Scaling` (plist lines 94 and 95), `serial-flash.md`, "When the engine touches the flash at open" |
+| 73 | read `0x101` | `CAsic::WaitMotorStop` (`0x056d80`, call `0x01e328`) | `MOTORENB` read clear at once, so one read. Set, the engine polls every 1 ms for up to 20 s |
+| 75, 77 | read `0x101`, `0x03 = 0x00` | `CAsic::LampOn(false)` (`0x05ab30`, call `0x01e382`) | `IsLampOn` reads `LAMPSTS`, `XPASEL` follows the transparency lamp flag (clear at open) and `_LAMPPWR(0)` writes, so the blast's `0x03 = 0x20` becomes `0x00` (`LampType 1`, plist lines 132 and 133) |
+| 81 to 112 | eight AFE writes | `CAfe::_aSoftwareReset` (call `0x01e5a2`), `WriteAllAfe` (`0x0f3dd0`, call `0x01e5bf`) | key `@` (plist lines 31 and 32): AFE 0 = `0xf8`, 1 = `0x80`, the rest 0, marked by `ReadSettings`. The reset sends nothing: `CAfe::AfeIs` (`0x018240`) takes the front end for type 1 from `0x0a` bits 7 and 6, and only types 0 and 2 have a reset |
+| 113 to 124 | `0x36`, `0x33` read-modify-write | `LoaderEjectSel(true)` (call `0x01e62d`) | "Standby", part 1, row 6 |
+| 125 | `c0 0c 008e` wIndex 0 | `CIOUSB::IsHispeed` (call `0x01e761`) | `Register` never uses the answer, so the bus speed changes nothing at open |
+| 127 to 138 | `0x31` pulse | `StandbyModeSel` (calls `0x01e784` to `0x01e7a6`) | "Standby", part 1, row 10 |
+
+Frame 15, the read of wIndex `0x26fe`, is `InitInterrupt` ("Standby", part 1, row 1).
+
+### 2. The two engines against the capture
+
+**Windows.** `Register` of V5.0.2.0 is `FUN_1800051e0` (`work/re-win/decomp-x64/FUN_1800051e0@1800051e0.c`). It reads wIndex `0x26fe` (`FUN_180104cb0`, line 127) and the settings (line 128), runs no software reset, and enters its block only while the process-wide open count `DAT_1801a427c` is below 1 (lines 140 to 143). For bcdDevice `0x400` and up the block starts with `WriteAllReg` (line 186) and the clocks, continues with the flash steps behind a test of `FUN_1800233e0` (lines 222 to 245) and `WaitMotorStop` (line 251), and ends with the pulse (lines 358 to 360), after which it sets `local_168 = 1` (line 361). The second block runs only when `local_168` is still 0 (line 439), so a first open sends the first block alone, which matches frames 15 to 138. Which Windows build made the capture in 2019 is not known. V5.0.2.0 matches it in structure.
+
+**macOS.** `Register` runs `InitInterrupt` (call `0x01dc18`), `SoftwareResetScanner` (call `0x01dc2b`, "Resets", part 1), 50 ms (`0x01dc35`), `ReadSettings` (`0x01dc5a`), then the same block as Windows from `WriteAllReg` (`0x01e033`) to the pulse, then a second block after taking its lock again (`0x01eb54`, "Standby", part 1, row 12): the `_XPASEL` read of `0x03` (`0x01eb7e`), `WriteAllReg` and the AFE calls with nothing marked (`0x01ebbe`, `0x01ebdd`, `0x01ebfa`), the clocks (`0x01ec10`, `0x01ec26`), the DRAM refresh (`0x01ec45` to `0x01ece9`), `IsHispeed` (`0x01ecff`), `LampOn(false)` (`0x01eee0`, `0x01ef29`), `StandbyModeControl(false)` (`0x01ef52`), `SFlash_RDID` (`0x01efb9`) and `LoaderEjectSel` (`0x01f14b`). `SPI_init` and the infrared read do not run the second time. Against the capture, the macOS open adds `0x0e = 0x00` and the `0x0a = 0x48` of `SoftwareResetScanner`'s `_ADFSEL` (the blast's value), and repeats the rest. The state it leaves differs from the capture's only in `0x0e`, which no other request of the open writes. `apiRegister` (`0x01d110`) then runs `GetDeviceCapability` (`0x01fe40`), `InitCalibratIntervalInfo` and `InitStandbyModelOffTimeInfo`, which set host state and timers and send nothing.
+
+**No motion at open.** `LoaderInterruptReg` is absent from both OpticFilm 120 plists, so `Register`'s `MoveCarriage` block (`CScanApi__Register@0001da80.c` lines 282 to 336) does not run, and `Register` calls no `HomeCarriage`. The only move an open can start is step 8 of `SoftwareResetScanner`, which needs a holder position remembered by the host ("Resets", part 1). The firmware's own run at power-on turns the motor (`../work/0011-first-motor-move.md`), and the carrier read at home after both logged wakes ("Resets", part 2).
+
+**When the engines would send something else.**
+
+| Condition | Engine | What changes |
+|---|---|---|
+| `0x26fe` reads with bit 0 set | both | the write-back `40 0c 008b` wIndex `0x26fe`, `00` |
+| `MOTORENB` set at open | both | `WaitMotorStop` polls `0x101` until it clears, up to 20 s |
+| the host remembers a positioned holder | macOS | `SoftwareResetScanner` ends with `HolderHomeCarriage`, a loader move toward the slot ("Moves and homing", part 1) |
+| a second open in the same process | Windows | the second block in place of the first |
+| `FUN_1800233e0` returns non-zero | Windows | no flash requests |
+| the unit enumerates as `05e3:0103`, as the owner's does | both | no open: macOS matches VID and PID only (`../vendor-driver/macos.md`, "Which devices the engine opens"), and the Windows INF binds only `07b3:1406` (`../vendor-driver/windows.md`, "Device discovery and configuration") |
+
+### 3. `vendor_open.py` against the engine
+
+`OPEN_SEQUENCE` (`tools/pi/vendor_open.py` lines 195 to 243) is frames 15 to 138: the requests of frames 15 to 135, a link check after each write, and the capture's pauses (26.6 ms before frame 17, 12.4 ms before 57, 68.3 ms before 73, 12.3 ms before 133). It is the Windows first open with constants in place of the three read-modify-writes ("Standby", part 1, last paragraph), and it refuses to write rather than wait when the carrier is off home or `MOTORENB` is set (`../work/0011-first-motor-move.md`). Against the macOS engine it lacks `0x0e = 0x00` and the repeats. Nothing it lacks addresses the motor. Its only motor write is the blast's `0x02 = 0x78`.
+
+### 4. pyopticfilm
+
+`Gl128.asic_boot` and `init` (`asic/gl128.py` lines 1246 to 1279) against the capture's open:
+
+| pyopticfilm (8200i SE) | Capture and engine (OpticFilm 120) |
+|---|---|
+| two 34-byte AHB writes at `0x000fff00` and `0x000fff01` (lines 157 and 158) | none: they have the size of `CleanUserData`, which `DisableUserData = 1` (plist lines 82 and 83) turns off ("Standby", part 4) |
+| `INIT_REGS` of the SE (`device/gl128_common.py` lines 31 to 52) | the plist image of part 1, 118 pairs with `0x114` and `0x115` |
+| memory layout at boot | none at open. The capture writes `0xd0` to `0xf8` before the first scan (frames 265 to 332, `of120-capture-151.md`, "Re-initialisation before the preview") |
+| `GPO_REGS`, `0xa2` to `0xae` (`device/gl128_common.py` lines 79 to 84) | none: the blast sets `0xa4` to `0xab` to other values (part 1), which `GPO_REGS` would zero |
+| no `0x8c` writes, no DRAM refresh toggle | `0x8c` wIndex `0x10` and `0x13` = `0x0d`, then `0x0b`, `0x13`, `0x0b`. `Protocol.write_0x8c` exists (`usb/protocol.py` line 182) and the GL845 code sends the same pair with `0x0c` (`asic/gl845.py` lines 102 and 103) |
+| `set_frontend_init` | AFE defaults from key `@` |
+| no flash request | flash ID and the infrared record, needed for infrared scans, not for the open to hold *(inference)* |
+| no lamp write at boot | `0x03 = 0x00` |
+| no GPIO read-modify-write, no pulse | `LoaderEjectSel` and the pulse ("Standby", part 4) |
+| `upload_tables` at init: slope tables to `0x1000c000` and `0x10010000`, exposure tables to `0x10000000`, `0x10004000`, `0x10008000` (lines 1197 to 1244) | nothing uploaded at open. Each move uploads its own slope pair, the scan its three tables (frames 6821 to 6844) |
+| no `0x0e` write (line 1249) | the same in the capture. The macOS engine writes `0x0e = 0x00` |
+
+pyopticfilm change this section implies: an OpticFilm 120 model entry whose `init_regs` are generated from the plist's root image (118 pairs, so that each value traces to a key), no AHB blobs, no memory layout and no GPO block at boot, and an open hook after the blast: the clock pair, the DRAM refresh toggle, the lamp-off write, the AFE defaults from `@`, then the eject switch and the pulse of "Standby". The flash read is optional at open. Table uploads move to the motion and scan code. `0x0e` stays unwritten. Nothing changes for the existing models.
+
+## Moves and homing
+
+In short: four engine functions produce every carrier move of the capture, and their arithmetic with the plist's values gives the capture's `FMOVNO` and FEEDL for all five moves whose distance is fixed. FEEDL does not count the ramps: a move is FEEDL steps plus `FMOVNO` steps up and `FMOVNO` steps down, as the engine's arithmetic and the capture's timing both indicate (part 3). `0x33` bit 5 is the engine's drive select (`MotorReg`, `CAsic::MotorSel`): with it set the engine scales distances with the second entry of `MotorDPI`, 310 steps per inch against 5333, and it sets it for the film loader moves (move 2, move 3, the reverse and the exit move). The home sensor changes only in moves with the bit clear. The engine homes in two ways and neither is a move with `MTRREV`: `AGOHOME` after each image brings the carrier back onto the home sensor, and `HolderHomeCarriage` runs the loader drive with BACKSCAN toward the slot. The open homes nothing. So the owner's two moves, replays of move 3, ran on the drive whose moves never change the home sensor in the capture, and the test of the drive with the home sensor was move 1 (`move_carrier.py --as-move-1`). That test ran on 2026-10-15 11:40 UTC and the carrier moved: `HOMESNR` cleared 0.135 s after the start write, the feed finished at 0.45 s, and the owner heard it (`../hardware/probes/20261015T114043Z-move-carrier-move-1.jsonl`, `../work/0011-first-motor-move.md`).
+
+### 1. The engine's move functions
+
+- `CAsic::Unit2Step` (`0x054b80`): steps = distance in units × (`MotorDPI[i]` shifted left by `FSTPSEL`) / `UnitDPI`, with `UnitDPI = 10600` (plist lines 745 and 746), `MotorDPI = 5333,310` (lines 165 and 166) and `FSTPSEL` from `0xa0` bits 5 to 3. `i` is 1 while the engine's flag `0x25c` is set (with `MotorSel` for a film source, and by `HolderHomeCarriage`) or its ADF flag `0x24c`, otherwise 0. A unit is 1/10600 inch.
+- `CAsic::MoveCarriage(distance, …)` (`0x0545d0`): saves `ACDCDIS`, FEEDL, `LPERIOD`, `TGTIME`, `TBTIME` and the exposure times, clears `ACDCDIS`, `NOTHOME` and `AGOHOME`, sets `MTRPWR` and `FASTFED`, and sets `MTRREV` for a negative distance. For bcdDevice `0x606` and up: `FMOVNO = min(steps / 2, MotorStep - 1)` and `FEEDL = steps - 2 * FMOVNO`. Then `WriteAllReg` (call `0x054a61`), `WriteFastTable` (`0x054a7f`) and `_MOVE` (`0x054aa6`, `0x0f = 0x01`). It puts the saved values back into the shadow only, so the next `WriteAllReg` sends them. `MotorStep` is 256 (`CAsic::CAsic`, `0x0521a0`), the plist has no `MotorSteps`.
+- `CAsic::MoveWithDetectSensor(value, distance, wait)` (`0x05ca90`): `FMOVNO = min(steps / 4, MotorStep / 2 - 1)`, `FEEDL = steps - 4 * FMOVNO`, start, then a loop that reads `MOTORENB` (call `0x05cf05`) and the event byte (`CIOUSB::Interrupt`, call `0x05cf50`, wIndex `0x21` for this product, "Status and flags", part 2). `wait` is the pause in µs after a failed event read. When the byte equals `value`: `MTRPWR` off (`0x02 = 0x08`) and FEEDL 1, `WaitMotorStop(1500)`, `MTRPWR` on (`0x02 = 0x18`), then the saved values back into the shadow. `value` is the second number of `MoveDetectSensor = 1,64,100` (plist lines 169 and 170) or `LoaderDetectSensor = 1,32,240` (lines 144 and 145), the third the distance in percent of `UnitDPI` (`usb-requests.md`, "Interrupt and buttons").
+- `CAsic::HolderHomeCarriage` (`0x06b3a0`): `WaitMotorStop`, `MotorSel(3)` (call `0x06b401`), distance `FilmLoaderOrigin` (`0,980`, lines 96 and 97) × `UnitDPI` / 1000, doubled because `LoaderDetectSensor` is set and `Enable35mmFilmLoader = 0` (lines 88 and 89), less a length the caller passes (applied because `FilmLoaderSize` is set, lines 98 and 99). Then flags `0x25f` and `0x25c`, `_BACKSCAN(1)` (call `0x06b631`), `FMOVNO = min(steps / 4, 127)`, `FEEDL = steps - 2 * FMOVNO`, `WriteAllReg`, `WriteFastTable`, `_MOVE`, `WaitMotorStop`, `_BACKSCAN(0)` (`0x06bc1c`) and `MotorSel(0)` (`0x06bc45`). Its eject variant first asks `IsLoaderOnHomeSensor`, which reports true without `LoaderSensorReg` ("Status and flags", part 1).
+- `CAsic::MotorSel(source)` (`0x05d5f0`) with `MotorReg = 0x33,0x20,0x00` (lines 167 and 168): reads `0x33` (call `0x05d670`). For a film source (1 positive, 2 negative, or 3) it writes `MTRPWR` on (`0x02`) and `ADFSEL` off (`0x0a = 0x48`) and sets bit 5. For source 0 it writes the same two and clears bit 5. For the ADF sources (4, or `-1`) it sets bit 5 and takes `STEPSEL` and `FSTPSEL` from `AdfStepSel`. Then it writes `0x33`. That is the capture's pattern at every change of bit 5: read `0x33`, write `0x02`, `0x0a`, `0x33` (`of120-moves.md`, "What the capture does not show").
+- `CAsic::WriteFastTable` (`0x055b80`): builds the table with `CAsic::GetMotorTable` (`0x056fc0`) from the plist's `Motor` curves (lines 154 to 164: `Curve 30,3000,180`, `DetectSensorCurve 110,800,240`, `LoaderSensorCurve 110,240,440`), `MotorBackRatio = 100` (lines 51 and 52), `FSTPSEL` and `MotorStep` entries, and writes it to `0x1000c000` and `0x10010000` (`CGL126::MotorAddr`, `0x080e40`). Which curve each move uses was not traced, and the tables were not recomputed.
+- `CAsic::HomeCarriage` (`0x056bb0`): when `HOMESNR` is clear and `MOTMFLG` reads clear twice, `MoveCarriage` by `HomeCarriageStep` (`0,-6`, lines 124 and 125, six inches back, so with `MTRREV`) and `WaitMotorStop(1500)`. Its callers in `CScanApi::StartScan` run only for a reflective source (flag `0x24e`, set when the plist has `Reflection`, which this one lacks) or when `CScan::IsOriginFound` (`0x0db460`) is false, which `AreaOrigin = 0,0` (lines 72 and 73) rules out (`CScanApi__StartScan@00027c50.c` lines 215 to 230 and 288 to 306). The callers in `ModuleControl` (`0x02fdf0`), `StopScan` and `Oldapi` were not traced. The capture never sets `MTRREV` (`of120-moves.md`, "Direction"), so none ran there.
+
+### 2. The capture's moves, computed
+
+`CScan::StartMove` (`0x08e560`) positions the film before each image. `moves_from_engine.py` applies the formulas of part 1 to the plist's values and to `FSTPSEL` as written at each start (`0xa0 = 0x0a`, the reverse `0x12`):
+
+| Move | Engine call | Distance | Bit 5, `MotorDPI` | `FSTPSEL` | Steps | `FMOVNO`, FEEDL computed | Capture (`of120-moves.md`, "Overview") |
+|---|---|---|---|---|---|---|---|
+| 1 | one event read to clear (call `0x08e7fd`, frame 6257, `04`), `MoveWithDetectSensor(0x40, …, 100)` (`0x08e835`) | 100 % of `UnitDPI`, 1 inch | clear, 5333 | 1 | 10666 | 127, 10158 | 127, 10158 |
+| 2 | `MotorSel(source)` (`0x08ec27`), `MoveWithDetectSensor(0x20, …, 8000)` (`0x08ec87`), `MotorSel(0)` (`0x08edb2`) | 240 %, 2.4 inch | set, 310 | 1 | 1488 | 127, 980 | 127, 980 |
+| 3 | `MotorSel(source)` (`0x08efab`), `MoveCarriage` (`0x08f05e`), `MotorSel(0)` (`0x08f0ed`) | `FilmLoaderOrigin`, 0.98 inch | set, 310 | 1 | 607 | 255, 97 | 255, 97 |
+| 4 | `MoveCarriage(…, true)` (`0x08f8c9`) | from the scan area, not recomputed | clear | | | | 255, 5592 |
+| Reverse | `HolderHomeCarriage` | 2 × `FilmLoaderOrigin` | set, 310 | 2 | 2430 | 127, 2176 | 127, 2176 |
+| Exit | `HolderHomeCarriage` | 2 × `FilmLoaderOrigin` | set, 310 | 1 | 1215 | 127, 961 | 127, 961 |
+
+Notes:
+
+- Move 3's distance passes through two adjustments by `LoaderOverView` (`1,3000`, plist lines 150 and 151) under host flags (`CScan__StartMove@0008e560.c` lines 233 to 253). The match shows that neither applied in the capture. With a negative result the engine would move with BACKSCAN (lines 260 to 264).
+- The length the caller passes to `HolderHomeCarriage` was 0 at both calls, by the match *(inference)*. Which caller made each of the two BACKSCAN moves was not traced.
+- Move 2's FEEDL 980 is 1488 minus 4 × 127, the arithmetic of a 2.4 inch sensor move. That it equals the 980 of `FilmLoaderOrigin` is a coincidence of the numbers, so the readings of move 2 as the move to `FilmLoaderOrigin` (`usb-requests.md`, "Interrupt and buttons", and `of120-capture-151.md`, "Phases") need correcting. The move to `FilmLoaderOrigin` is move 3.
+- Moves 1 and 2 end on events `0x40` and `0x20`, the values named by `MoveDetectSensor` and `LoaderDetectSensor`. Without the event they would run `FEEDL + 2 * FMOVNO` steps: 10412 (0.98 inch) and 1234 (2.0 inches), each 254 steps short of the computed distance *(inference from part 3)*.
+
+### 3. FEEDL and the ramps
+
+Two sources agree that FEEDL leaves the ramps out:
+
+- The engine: `MoveCarriage` and `HolderHomeCarriage` set `FEEDL = steps - 2 * FMOVNO` for a move of `steps`, which is a move of `FEEDL + 2 * FMOVNO` steps if the ASIC adds `FMOVNO` steps at each end *(inference: the intent read from the arithmetic)*.
+- The timing. `ramp_timing.py` takes `tables/slope-6353.hex`, which move 3 (`FMOVNO` 255, FEEDL 97) and the exit move (127, 961) share, and the times from the start write to the first `FEEDFSH` and to `MOTORENB` clearing (`of120-moves.md`, "Overview"). Model A: the ASIC steps through `FMOVNO` table entries up, FEEDL steps at the last entry, sets `FEEDFSH`, steps through `FMOVNO` entries down and clears `MOTORENB`. It needs one time unit per table count: 0.244 to 0.250 µs from move 3's `FEEDFSH`, 0.248 to 0.250 µs from the exit's, and 0.251 to 0.267 µs and 0.249 to 0.273 µs from the two ramps down. One unit of about 0.25 µs fits all four within 1 %. Model B, `FEEDFSH` only after the whole move, needs 0.133 to 0.137 µs for move 3 and 0.208 to 0.210 µs for the exit, which do not agree. FEEDL counting the ramps cannot hold for move 3, where FEEDL 97 is less than 2 × 255.
+
+So a move is `FEEDL + 2 * FMOVNO` steps, and its time is the sum of the table entries up and down plus FEEDL times the last entry used *(inference: one step per table entry, as in SANE's GL124 backend)*. That answers the first point of `of120-moves.md`, "What the capture does not show", for the moves that run to their end. Move 3 is 607 steps, 0.98 inch at 620 steps per inch (`MotorDPI[1]` with `FSTPSEL` 1).
+
+### 4. `0x33` bit 5
+
+- Engine: `MotorSel` sets the bit for every source except 0 (part 1). `StartMove` and `HolderHomeCarriage` call it with the film source around exactly the moves that `Unit2Step` scales with `MotorDPI[1]` (flag `0x25c`), and with 0 after them. So the bit and the 310 steps per inch go together: the bit selects a second drive path, with a scale 17 times coarser than the first. Whether that path is a second motor, a second gear train or a second driver channel, the engine does not say. The board has a quad 2-input multiplexer with no known role (U5, CD74ACT157M, `../hardware/board.md`, "Parts"), which a select line of this kind would fit *(inference, no physical step proposed)*.
+- Capture: the bit is set for moves 2 and 3, the reverse and the exit move, clear for moves 1 and 4, and no other write changes it (`of120-moves.md`, "What the capture does not show"). `between.py` replays every register write from frame 139 to 6256 (from after the open to move 1): no write in that range sets it. `HOMESNR` changes only while the bit is clear: move 1 leaves the sensor and the `AGOHOME` park after the image returns to it. In the four moves with the bit set it keeps its value, clear in moves 2 and 3, set in the two BACKSCAN moves (`of120-moves.md`, "Direction"). That fits a second drive that moves something the home sensor does not watch *(inference)*. It is an alternative to the reading in `of120-moves.md`, "Direction", that the BACKSCAN moves keep the sensor covered beyond home.
+- Owner's unit: `move_carrier.py` replays move 3, so both of the owner's moves ran with the bit set, starting at home (`../work/0011-first-motor-move.md`). A constant `HOMESNR` is what the capture shows for every such move, so the home sensor says nothing about motion in those runs. Only the owner's report that nothing was heard or seen does. Move 1 is the capture's one move with the bit clear that starts on the home sensor, and `HOMESNR` clears during it. `move_carrier.py --as-move-1` replays it (`../work/0011-first-motor-move.md`), and its first run (2026-10-15 11:40 UTC, 97 steps) moved the carrier: `HOMESNR` clear from 0.135 s after the start, `MOTORENB` clear at 0.45 s, `0x101 = 0xf0` afterwards, motion heard by the owner. So the carrier drive, its driver and the home sensor work on the owner's unit, and the two silent runs were the drive that bit 5 selects, with nothing in the slot for it to move *(inference: whether that drive turned silently or not at all is not known; the holder test in `../work/0013-debugging-facilities.md` is its check)*.
+
+### 5. Homing
+
+- At open: none ("Open", part 2).
+- After each image: `CScan::StartScan1` (`0x0b4990`) calls `StartMove` (`CScan__StartScan1@000b4990.c` line 677), then for every source except the ADF ones sets `AGOHOME` (line 687), `MTRPWR` on, `FASTFED` off, `FSHDEC` 1, `CLRLNCNT`, `CLRDOCJM` and, for bcdDevice `0x600` and up, `CLRMCNT` (lines 690 to 698). Hence the image's `0x02 = 0x30`, and the ASIC returns the carrier to `HOMESNR` after the image without a start of its own (`of120-moves.md`, "End of pass, the park": home by 268.16 s).
+- The loader: `HolderHomeCarriage` with BACKSCAN, toward the slot. Callers: `StartMove` when a holder position is remembered and a host flag (`+0xb4`) is set (`CScan__StartMove@0008e560.c` lines 140 to 158), `SoftwareResetScanner` step 8 ("Resets", part 1), and the eject at the end. The capture's reverse and exit moves have its values (part 2).
+- `HomeCarriage`, the only move with `MTRREV`, is not in this model's flow (part 1).
+
+### 6. pyopticfilm
+
+What it does for the 8200i SE:
+
+- `feed` (`asic/gl128.py` lines 1600 to 1603) calls `_feed_capture` (lines 1459 to 1526): `_FEED_SETUP_REGS` (lines 123 to 152) with `0xae`/`0xaf = 0x007f` for every feed, FEEDL as requested, `0x02 = 0x18`, `_upload_fast_slopes` (lines 1414 to 1436, one table to `0x1000c000` and `0x10010000`), the start, a wait on wIndex `0x21` for `0x04` or on `FEEDFSH` (lines 114 and 115), then `0x02 = 0x08` and FEEDL 1 (lines 1516 and 1517). That is `MoveCarriage`'s shape with a fixed `FMOVNO` of 127, ended with the writes of `MoveWithDetectSensor`'s cut.
+- `home` (lines 1704 to 1720) refuses unless at home, `park` (line 1722) needs home, `wait_until_at_home` (lines 1438 to 1452) waits for the `AGOHOME` park, and `stop_motor` (lines 1657 to 1702) ends an image pass. That matches how the engine homes this model.
+- Names: pyopticfilm calls `0xaf` `REG_DEPTH_B` (`asic/registers.py` line 99) and `0xa2` to `0xae` the "GPO block" (`device/gl128_common.py` lines 79 to 84). The engine names them `SCANFED`, `STEPNO`, `FWDSTEP`, `BWDSTEP`, `FASTNO`, `FSHDEC` and `FMOVNO` (`gl128-registers.md` lines 175 to 181), so `0xae`/`0xaf` is the ramp length.
+
+pyopticfilm change this section implies, for the OpticFilm 120: a feed that takes a distance, computes steps with the `MotorDPI` entry of the selected drive, and sets `FMOVNO` and FEEDL with the engine's formulas. With the fixed `0x007f`, every move would run 254 steps beyond FEEDL (part 3). A model field for the drive select (`MotorReg = 0x33,0x20`), applied with `MotorSel`'s read-modify-write and its `0x02` and `0x0a` writes. A sensor-ended feed with the expected event value from the model (`0x40`, `0x20`), read at wIndex `0x21` as `_read_feed_probe` does. BACKSCAN as the direction bit. Homing by the existing `wait_until_at_home` after an image, and a loader return as a BACKSCAN move. The tables come from `tables/` until `GetMotorTable` is ported. For the existing models: the names `FMOVNO` for `0xae`/`0xaf` and the engine's names for `0xa2` to `0xad`, with their values unchanged.
+
 ## Status and flags
 
 In short: the engine learns the unit's state from the two status registers `0x101` and `0x100`, from the GPIO data registers, from a few one-byte vendor reads and from an event byte that arrives either on the interrupt endpoint or through a polled read. Its API status calls read at most `0x101`, `0x100` and `0x31`. The button status, the unit-ready test and the last error read nothing from the unit. The engine has a full register dump, `CScan::DumpAllRegFromAsic`, which reads `0x01` to `0x120` one register at a time, but it runs only at debug level 4 and up, and the OpticFilm 120's settings leave the level at 0. Apart from the home sensor and the event byte, no flag the engine reads reports anything downstream of the motor outputs. A snapshot made only of IN requests that the engine or the capture uses is in part 3.
@@ -272,3 +415,45 @@ So `SdramSelfTest` is the one test worth considering, and not for the motor: the
 pyopticfilm change this section implies: none.
 
 **What this suggests for the motor.** Nothing the engine reads sits downstream of the ASIC's motor outputs. The only feedback from the mechanics is the home sensor (`0x101` bit 3) and the event byte, whose `0x40` and `0x20` end the vendor's moves 1 and 2 when a sensor trips (`usb-requests.md`, "Interrupt and buttons", an inference there for the sensors). `MOTORENB`, `FEEDFSH`, `MOTMFLG` and `HISPDFLG` describe the ASIC's own step sequencer *(inference: the engine never checks them against a sensor)*. On the owner's unit the sequencer behaved like the working unit's in both moves (above), so the ASIC side of the move ran. Reading `0x100` together with `0x101` during the next move adds one check: if `MOTMFLG` and then `HISPDFLG` come up as in the capture's parks, the ASIC believes it is stepping, and the fault sits between its motor pins and the motor (driver, its supply or enable, cable, motor) *(inference)*. If they stay clear while `MOTORENB` is set, the sequencer is in a state the working unit never showed. The capture reads `0x100` only during AGOHOME parks, not during a FEEDL move, so the comparison is between different kinds of move. `0x06` bit 4 and `0x101` bit 7 still set after the move would rule out the ASIC losing its set-up during it, as a supply dip would cause *(inference)*. The owner's logs show bit 7 set after both moves. The snapshot also reads back the motor-related outputs, `0x02` and GPIO22 (`0x33` bit 5, `MotorReg = 0x33,0x20,0x00`, plist lines 167 and 168, used by `CAsic::MotorSel`, `0x05d5f0`), for comparison with the vendor's move 1, the one capture move with proven motion (`../work/0011-first-motor-move.md`). No read tells a driver that gets no steps from one that gets steps and cannot turn the motor. That takes a measurement at the motor driver on the board, a physical step for the owner to weigh (`../hardware/board.md`, "Reassembly").
+
+## Requests the firmware handles
+
+In short: every kind of request the capture's driver sends from the open to the end of move 1, the engine function behind it, and whether the owner's unit has had it. The owner's unit has had the register path, the link check, the USB-core clock writes, the flash read path, the one-byte reads at wIndex 0, `0x18` and `0x26fe`, and the bulk write path for the slope tables. It has never had a bulk read, a write to the shading or scan table addresses, the `0x8d` end step, an answered event read, a start with motor power off, or a counter clear. Only the event read reports anything about the mechanics, and none of them addresses the motor drive *(inference)*. A fuller replay of frames 139 to 6256 is therefore unlikely to change what a move does. The move with `0x33` bit 5 clear ("Moves and homing", part 4) tests more.
+
+### 1. Request kinds
+
+`inventory.py` lists every request of `work/captures/151/transfers.jsonl` from frame 15 to 6344 by kind, `between.py` the register writes from frame 139 to 6256, and `probes_requests.py` the kinds in every log of `../hardware/probes/`:
+
+| Request | Engine function | Capture, frames 15 to 6344 | Owner's unit |
+|---|---|---|---|
+| `40 04 0083` and `0183`, register pairs | `CIOUSB::WriteAllReg` and the field setters | throughout | yes |
+| `c0 04 008e` and `018e`, register read | `ReadRegs`, the field getters | `0x101` 1072 times from 139 to 6256, `0x100`, `0x102` to `0x105`, `0x31`, `0x33`, `0x36` | yes, 311 registers in the snapshots (`../hardware/usb.md`, "Register snapshot") |
+| `c0 0c 008e` wIndex `0x20` | the Windows write acknowledge ("Status and flags", part 2) | 458 times, after every write | yes, after every write |
+| `c0 0c 008a` wIndex `0x26fe` | `InitInterrupt` | 15 | yes |
+| `40 0c 008c` wIndex `0x10` and `0x13`, `0d` | `SetSystemClock`, `SetAHBClock` | 5 times each (37 and 41, 183 and 187, 3099 and 3103, 5977 and 5981, 6011 and 6015) | with each open |
+| `40 0c 008b` wIndex 7, `40 04 008b` wIndex 9 and `0x0b`, `c0 04 008a` wIndex `0x10` and `0x0f` | `SPI_init`, `SFlash_RDID`, `SFlash_Read` | 57 to 72 | with each open, and the whole flash once (`../hardware/flash-dump.md`) |
+| `c0 0c 008e` wIndex 0 | `IsHispeed` | 125, 159 | yes |
+| `40 04 0082` wIndex 1, then bulk OUT `0x02` | `CIOUSB::WriteData` | shading to `0x10014000`, 9112 bytes, 5 times (2145, 3061, 5071, 5961, 6179). The slope pair of move 1 (6263, 6271) | the slope pair only, in the two move runs (`../hardware/probes/20261015T072134Z-move-carrier.jsonl`, `20261015T073623Z-move-carrier.jsonl`) |
+| `c0 0c 008e` wIndex `0x18` | the busy poll after a bulk transaction | 21 times | yes, after the slope uploads and in the snapshots |
+| `40 04 0082` wIndex 0, then bulk IN `0x81` | `CIOUSB::ReadData` | 14 headers at `0x10000000` (3072, 81732 and 574464 bytes), 1028 bulk IN transfers | never |
+| `40 0c 008d` wIndex 0, `00` | `EndReadTransaction` with bytes left, or `CancelBulk` (`usb-requests.md`, "Bulk transfers") | none before 7143 | never |
+| interrupt IN `0x83` | the Windows event read | 6257 (`04`), 6285 (`40` after 3.9 s), 6343 (cancelled) | four reads, in the read-only probe and the three snapshots, nothing |
+| `c0 0c 008e` wIndex `0x21` | the macOS event read, `CIOUSB::Interrupt` (`0x0f2010`) | none | never |
+| `40 0c 008b` wIndex `0x26fe`, `00` | `InitInterrupt` write-back | none | never, and not due ("Open", part 2) |
+| `40 0c 008b` wIndex 4, `00` | `HardwareResetScanner` | none | never ("Resets") |
+
+Register commands within the register path, from frame 139 to 6256:
+
+- 14 starts (`0x0f = 0x01`, frames 381, 579, 825, 1037, 1215, 1459, 2251, 3317, 3547, 3803, 3981, 4171, 4417, 5179), all with `MTRPWR` clear (`0x02 = 0x00`), `0x09 = 0x00`, FEEDL 1, `LINCNT` 1 or 128 and `0x01` `0x03` or `0x23`: the static runs of the calibration under `CScan::Calibration` (`0x08ff10`), each read back over the bulk path. The owner's unit has had starts only with `MTRPWR` set, in the two moves.
+- `0x0d` written `0x07` 28 times, `0x05` 4 times, `0x04` twice, all with `CLRMCNT` (bit 2), and `0x00` 5 times. The owner's unit has had no `0x0d` write with a clear bit set.
+- AFE offset and gain values from the calibration searches (`CScan::Calibration`). The owner's unit has had the defaults of `@` and one AFE 4 write in the move tool.
+- The memory layout `0xd0` to `0xf8`, 10 writes in two layouts. The owner's unit had the layout of move 3 in both move runs.
+- Nothing in the range addresses the motor apart from the blasts' `0x02 = 0x78`, and nothing is uploaded to the table addresses `0x10000000` to `0x1000bfff` before move 4 (frames 6821 to 6844).
+
+### 2. What could matter for the motor
+
+1. The event read (wIndex `0x21` on macOS, an answered endpoint `0x83` read on Windows). Diagnostic, not a precondition: `MoveWithDetectSensor` reads it to cut a move short, and `MoveCarriage` does not read it at all. During a run of `--as-move-1` it would show whether the unit reports the `0x40` that ends the vendor's move 1. Read only, though a read may consume a latched event ("Status and flags", part 3).
+2. The counter clears. No capture move has a `0x0d` write with a clear bit between the previous start and its own (the last before moves 1 to 4 is the blast's `0x0d = 0x00` at frame 6019, before the reverse move the one at 7395, checked by script), and the owner's step sequencer ran with the capture's timing without any ("Self tests"), so their absence does not stop the sequencer *(inference)*.
+3. The calibration starts with motor power off, the bulk reads, the shading upload, the AFE searches and the `0x8d` end step: the image data path. The engine's move functions use only the register shadow and the tables they upload themselves ("Moves and homing", part 1), and `move_carrier.py` sends the capture's register state at the start write (`../work/0011-first-motor-move.md`).
+
+pyopticfilm change this section implies: none of its own. Of the request kinds above, pyopticfilm's GL128 code at `32dc576` lacks the clock pair (`Protocol.write_0x8c` exists, `usb/protocol.py` line 182), the flash read path (the constants `GPIO_READ` and `GPIO_WRITE` at lines 35 and 36 have no user), the `0x26fe` read and the Windows link check at wIndex `0x20`, which the macOS engine does not send either. "Open", part 4, says which of them the OpticFilm 120 entry needs.
