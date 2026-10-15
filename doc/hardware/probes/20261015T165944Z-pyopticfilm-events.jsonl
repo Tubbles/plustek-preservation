@@ -1,0 +1,9 @@
+{"event": "status", "when": "start", "status": 216, "time": "20261015T165946Z"}
+{"event": "step", "name": "arm", "when": "before", "status": 216, "time": "20261015T165946Z"}
+{"event": "step", "name": "arm", "when": "after", "status": 216, "time": "20261015T165946Z"}
+{"event": "step", "name": "open", "when": "before", "status": 216, "time": "20261015T165946Z"}
+{"event": "step", "name": "open", "when": "after", "status": 216, "time": "20261015T165946Z"}
+{"event": "step", "name": "feed", "when": "before", "status": 216, "time": "20261015T165946Z"}
+{"event": "step", "name": "feed", "when": "after", "status": 240, "time": "20261015T165947Z"}
+{"event": "step", "name": "home", "when": "before", "status": 240, "time": "20261015T165947Z"}
+{"event": "step", "name": "home", "when": "after", "status": 216, "time": "20261015T165948Z"}
