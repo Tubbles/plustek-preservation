@@ -714,7 +714,7 @@ class SafetyTests(unittest.TestCase):
             move_carrier.register_write(None, move_carrier.START.sent + move_carrier.MOTOR_POWER_OFF.sent),
             dataclasses.replace(move_carrier.REGISTER_STATE_WRITES[0],
                                 sent=move_carrier.REGISTER_STATE_WRITES[0].sent[:-1] + b"\x00"),
-            move_carrier.buffer_header(6467, 0x10000000),
+            move_carrier.buffer_header(6467, 0x10000000, len(move_carrier.SLOPE_TABLE)),
             dataclasses.replace(move_carrier.TABLE_UPLOADS[0][1], sent=bytes(512)),
             dataclasses.replace(move_carrier.TABLE_UPLOADS[0][1], endpoint=0x01),
             move_carrier.Request("register_read", None, 0xC0, 0x04, 0x008E, 0x0F22, length=2),

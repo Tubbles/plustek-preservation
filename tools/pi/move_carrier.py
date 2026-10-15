@@ -83,25 +83,36 @@ in the capture ran like that. Against the exit move, the capture's other
 move with BACKSCAN, the register state at the start write differs in 15
 registers (frame 15585, two of them FEEDL, FMOVNO among the others), and
 the capture has no move with BACKSCAN that starts off the home sensor
-(doc/protocol/of120-moves.md, "Direction").
+(doc/protocol/of120-moves.md, "Direction"). Without --backscan neither
+variant writes 0x09, and the gate does not read it: a --backscan run
+that stopped between its two 0x09 writes leaves bit 3 set for the next
+run of the same wake, until the open writes 0x09 = 0x00 again (frame
+17).
 
 --as-move-1 replays the vendor's move 1 instead, with FEEDL from --steps
 (doc/protocol/of120-moves.md, "Move 1 (frames 6257 to 6344)"). Steps 1,
-2, 5 and 6 stay as above. Step 3 sends
-REGISTER_STATE_MOVE_1, the 74 registers whose value at the start write of
-move 1 (frame 6279) differs from the value the open leaves, the 27
-registers of the block at frame 6259 left out, then the AFE write of frame
-6175. Step 4 is 0x33 = 0x1c (frame 6085, the vendor's last write of 0x33
-before move 1, bit 5 clear, no read-modify-write), the 27-pair block of
-frame 6259 as captured with FEEDL set to --steps, the table pair of frames
-6263 to 6277 with doc/protocol/tables/slope-6267.hex, then the start
-(frame 6279). From frame 6257 to the start the vendor sends nothing else
-but an interrupt read (frame 6257), which the tool leaves out: 0x02 = 0x18
-and 0x03 = 0x30 are in the block, 0x0a = 0x48 is the open's value and was
-last written at frame 6189. So the lamp is on during the move, as in the
-capture. Step 7 is 0x02 = 0x08 (as the vendor's cut, frame 6287), 0x03 =
-0x00 (frame 77 of the open) and a read of 0x101. Nothing of what the
-vendor sends after move 1 to set up move 2 is sent. test_move_carrier.py
+2, 5 and 6 stay as above. Step 3 sends REGISTER_STATE_MOVE_1, the 74
+registers whose value at the start write of move 1 (frame 6279) differs
+from the value the open leaves, the 27 registers of the block at frame
+6259 left out, then the AFE write of frame 6175. Step 4 is 0x33 = 0x1c
+(frame 6085, the vendor's last write of 0x33 before move 1, bit 5 clear;
+the vendor read 0x33 = 0x1e at frame 6083 first, the tool writes the
+value without a read), the 27-pair block of frame 6259 as captured with
+FEEDL set to --steps, the table pair of frames 6263 to 6277 with
+doc/protocol/tables/slope-6267.hex, then the start (frame 6279). From
+frame 6257 to the start the vendor sends nothing else but an interrupt
+read (frame 6257), which the tool leaves out: 0x02 = 0x18 and 0x03 =
+0x30 are in the block, 0x0a = 0x48 is the open's value and was last
+written at frame 6189. So the lamp is on during the move, as in the
+capture, and it stays on if the run stops between the block and step 7
+(exit 13, Ctrl-C). During the move the vendor read 0x101 once (frame
+6283) and then waited 3.9 s on an interrupt read (frame 6285) whose
+answer 0x40 ended the move; the tool polls 0x101 every 15 ms instead and
+has no interrupt read pending. Step 7 is 0x02 = 0x08 (as the vendor's
+cut, frame 6287), 0x03 = 0x00 (frame 77 of the open) and a read of
+0x101, whose captured value 0xf4 (frame 6327, lamp still on there) is
+expected to differ in LAMPSTS. Nothing of what the vendor sends after
+move 1 to set up move 2 is sent. test_move_carrier.py
 checks that the register state at the start write then equals the
 capture's at frame 6279 in full apart from FEEDL (10158 in the capture,
 above the limit of --steps). Against the state the move 3 variant
@@ -352,10 +363,10 @@ def single_write(frame: int, register: int, register_value: int) -> Request:
     return register_write(frame, bytes([register, register_value]))
 
 
-def buffer_header(frame: int, address: int) -> Request:
+def buffer_header(frame: int, address: int, size: int) -> Request:
     """Address and size of the next bulk transfer, both 32-bit little endian."""
     return Request("buffer_header", frame, VENDOR_OUT, 0x04, BUFFER_HEADER_VALUE, BUFFER_HEADER_INDEX,
-                   struct.pack("<II", address, len(SLOPE_TABLE)))
+                   struct.pack("<II", address, size))
 
 
 def table_upload(frame: int, table: bytes) -> Request:
@@ -417,8 +428,10 @@ BEFORE_WRITE_0X02 = single_write(6451, 0x02, 0x58)
 BEFORE_WRITE_0X0A = single_write(6455, 0x0A, 0x48)
 BACKSCAN_SET = single_write(7391, 0x09, 0x08)
 TABLE_UPLOADS = (
-    (buffer_header(6467, TABLE_ADDRESSES[0]), table_upload(6471, SLOPE_TABLE), upload_status_read(6473)),
-    (buffer_header(6475, TABLE_ADDRESSES[1]), table_upload(6479, SLOPE_TABLE), upload_status_read(6481)))
+    (buffer_header(6467, TABLE_ADDRESSES[0], len(SLOPE_TABLE)), table_upload(6471, SLOPE_TABLE),
+     upload_status_read(6473)),
+    (buffer_header(6475, TABLE_ADDRESSES[1], len(SLOPE_TABLE)), table_upload(6479, SLOPE_TABLE),
+     upload_status_read(6481)))
 START = single_write(6483, 0x0F, 0x01)
 CUT_MOTOR_POWER = single_write(6287, 0x02, 0x08)
 CUT_FEEDL = register_write(6291, bytes.fromhex("3d00 3e00 3f01"))
@@ -436,8 +449,10 @@ LAMP_OFF = single_write(77, 0x03, 0x00)
 REGISTER_STATE_MOVE_1_WRITES = register_state_writes(REGISTER_STATE_MOVE_1)
 REGISTER_33_BEFORE_MOVE_1 = register_33_write(6085, 0x1C)
 TABLE_UPLOADS_MOVE_1 = (
-    (buffer_header(6263, TABLE_ADDRESSES[0]), table_upload(6267, SLOPE_TABLE_MOVE_1), upload_status_read(6269)),
-    (buffer_header(6271, TABLE_ADDRESSES[1]), table_upload(6275, SLOPE_TABLE_MOVE_1), upload_status_read(6277)))
+    (buffer_header(6263, TABLE_ADDRESSES[0], len(SLOPE_TABLE_MOVE_1)), table_upload(6267, SLOPE_TABLE_MOVE_1),
+     upload_status_read(6269)),
+    (buffer_header(6271, TABLE_ADDRESSES[1], len(SLOPE_TABLE_MOVE_1)), table_upload(6275, SLOPE_TABLE_MOVE_1),
+     upload_status_read(6277)))
 START_MOVE_1 = single_write(6279, 0x0F, 0x01)
 MOVE_1_READ_0X101 = RegisterRead(6327, STATUS_REGISTER, 0xF4)  # the last read of 0x101 in move 1
 
@@ -785,10 +800,12 @@ def poll_limit_argument(text: str) -> float:
 
 
 def argument_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Move the film holder carrier once, as the vendor's move 3.")
+    parser = argparse.ArgumentParser(description="Move the film holder carrier once, as the vendor's move 3 "
+                                                 "(or move 1 with --as-move-1).")
     parser.add_argument("log_directory", type=pathlib.Path)
     parser.add_argument("--steps", type=steps_argument, default=DEFAULT_STEPS,
-                        help=f"FEEDL, 1 to {MAXIMUM_STEPS} (default {DEFAULT_STEPS}, as the vendor's move 3)")
+                        help=f"FEEDL, 1 to {MAXIMUM_STEPS} (default {DEFAULT_STEPS}, as the vendor's move 3; "
+                             "move 1 used 10158)")
     parser.add_argument("--backscan", action="store_true",
                         help="set 0x09 bit 3 (BACKSCAN) for the move and nothing else: move 3's registers and "
                              "table with the direction bit match no move in the capture, and the capture has no "
