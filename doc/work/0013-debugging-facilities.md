@@ -18,6 +18,11 @@ Steps:
 - [ ] Build the read-only snapshot tool from the list in "Status and flags", review, take a snapshot of the unit as it is now (after the open and the two moves).
 - [ ] Decide with the owner which resets to run, each bracketed by snapshots, in the order the "Resets" section proposes.
 
-What the engine cannot tell (playbook, "Self tests", closing paragraph): polling `0x100` during a move shows whether the ASIC believes it is stepping, but no read distinguishes "no steps reach the driver" from "driver or motor fault". That needs a measurement on the board, a physical step for the owner to weigh with its value, alternatives and risk written out first.
+What the engine cannot tell (playbook, "Self tests", closing paragraph): polling `0x100` during a move shows whether the ASIC believes it is stepping, but no read distinguishes "no steps reach the driver" from "driver or motor fault". That needs a measurement on the board. Owner's decision (2026-10-15): on the table, but the very last option, after every host-side avenue (resets, the move 1 variant, the holder-present hypothesis, a fuller replay of the capture), and then batched into one opening.
+
+Host-side avenues still open, in order:
+- Holder present. The working unit had the film holder inserted when it moved: `0x31` read `0xbb` before move 1 (bit 2, `LoaderReadyReg`, clear, which `CAsic::IsLoaderReady` reports as ready, `doc/protocol/playbook.md`, "Standby", part 2), while the owner's unit reads `0xbc` with the holder out. If the firmware enables the carrier drive only with a holder present, every move so far was bound to do nothing *(inference)*. Test: insert the empty holder with the unit on and connected, watch what the firmware does on its own, then one move with the holder in.
+- Resets bracketed by snapshots, and the move 1 variant (`0011-first-motor-move.md`).
+- A fuller replay of the capture before the first move (the calibration rounds and the shading upload), if the shorter replays keep failing.
 
 Related: `0011-first-motor-move.md` (the moves that produced no motion), `0012-driver-playbook.md` (method and the standby section), `0007-identity-and-flash.md`.
