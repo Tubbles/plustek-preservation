@@ -66,6 +66,21 @@ WORKING_UNIT_REGISTERS = {0x101: [0xF4] + MOVE_3_POLLS + [0xF4], 0x31: 0xBB, 0x3
 OWNER_UNIT_REGISTERS = {0x101: [0xDC, 0xDD, 0xD5, 0xD5, 0xF5, 0xF4], 0x31: 0xBC, 0x33: [0x0E, 0x1C, 0x3C, 0x1C],
                         0x36: 0xFE, 0x02: [0x78, 0x08]}
 
+# --as-move-1
+MOVE_1_START_FRAME = 6279
+MOVE_1_TABLE_SHA256 = hashlib.sha256(move_carrier.SLOPE_TABLE_MOVE_1).hexdigest()
+MOVE_1_TABLE_TRANSFER = ("bulk", 0x02, MOVE_1_TABLE_SHA256)
+# Not in the move 1 register state: commands, the fixed 0x33 write, and the 27 registers of the block at 6259.
+MOVE_1_EXCLUDED_REGISTERS = {0x0D, 0x0F, 0x33}
+MOVE_1_BLOCK_REGISTERS = {0x03, 0x7D, 0x7E, 0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x2C, 0x2D, 0x04,
+                          0x1D, 0x1C, 0xA4, 0xA5, 0xAA, 0xAB, 0x02, 0xAE, 0xAF, 0x3D, 0x3E, 0x3F}
+MOVE_1_BLOCK_10158 = ("0330 7d00 7e99 7f99 8000 8111 8200 8302 8444 8500 8617 87ac 2c01 2de0 0442 1d20 1c00 a400 a526"
+                      " aa00 ab26 0218 ae00 af7f 3d00 3e27 3fae")
+# 0x101 before move 1 as read at frames 6075 and 6089, then 0xdd as at frame 6283, right after the start. The
+# later polls are made up (the vendor's move 1 was cut by an interrupt). 0x33 as written at frame 6085.
+WORKING_UNIT_MOVE_1_REGISTERS = {0x101: [0xDC, 0xDD, 0xD5, 0xF5, 0xF4], 0x31: 0xBB, 0x33: 0x1C, 0x36: 0xFE,
+                                 0x02: [0x78, 0x08]}
+
 
 def read_transfer(register):
     return (0xC0, 0x04, 0x018E if register > 0xFF else 0x008E, 0x22 + ((register & 0xFF) << 8), 2)
@@ -126,6 +141,39 @@ def run_transfers(**move_arguments):
 
 
 MOVE_START = len(LOGGED_READ_TRANSFERS) + len(register_state_transfers())
+
+
+def move_1_state_transfers():
+    """The three REGISTER_STATE_MOVE_1 transfers, then the AFE write of frame 6175, each with its link check."""
+    state = move_carrier.REGISTER_STATE_MOVE_1
+    payloads = [pairs_hex(state[0:32]), pairs_hex(state[32:64]), pairs_hex(state[64:]), "51045d005e2a"]
+    return [transfer for payload in payloads for transfer in (write_transfer(payload), LINK_CHECK_TRANSFER)]
+
+
+def move_1_transfers(feedl_hex="000061", polls=4, polls_after_cut=None):
+    """From 0x33 = 0x1c (frame 6085) to the read of 0x101 after the move, as the work item lists them."""
+    block = MOVE_1_BLOCK_10158.replace("3d00 3e27 3fae", f"3d{feedl_hex[0:2]} 3e{feedl_hex[2:4]} 3f{feedl_hex[4:6]}")
+    sequence = [write_transfer("331c"), LINK_CHECK_TRANSFER, write_transfer(block), LINK_CHECK_TRANSFER,
+                buffer_header_transfer("00c0001000020000"), LINK_CHECK_TRANSFER, MOVE_1_TABLE_TRANSFER,
+                UPLOAD_STATUS_TRANSFER,
+                buffer_header_transfer("0000011000020000"), LINK_CHECK_TRANSFER, MOVE_1_TABLE_TRANSFER,
+                UPLOAD_STATUS_TRANSFER,
+                write_transfer("0f01"), LINK_CHECK_TRANSFER]
+    sequence += [read_transfer(0x101)] * polls
+    if polls_after_cut is not None:
+        sequence += [write_transfer("0208"), LINK_CHECK_TRANSFER, write_transfer("3d003e003f01"),
+                     LINK_CHECK_TRANSFER]
+        sequence += [read_transfer(0x101)] * polls_after_cut
+    return sequence + [write_transfer("0208"), LINK_CHECK_TRANSFER, write_transfer("0300"), LINK_CHECK_TRANSFER,
+                       read_transfer(0x101)]
+
+
+def run_move_1_transfers(**move_arguments):
+    return (LOGGED_READ_TRANSFERS + move_1_state_transfers() + move_1_transfers(**move_arguments)
+            + LOGGED_READ_TRANSFERS)
+
+
+MOVE_1_START = len(LOGGED_READ_TRANSFERS) + len(move_1_state_transfers())
 
 
 def capture_records(path, first, last):
@@ -293,13 +341,13 @@ class FakeClock:
         return vendor_open.Environment(sleep=self.sleep, monotonic=self.monotonic, find_device=lambda: self.scanner)
 
 
-def run_move(scanner, clock=None, steps=97, backscan=False, poll_limit_seconds=10.0, lamp=False):
+def run_move(scanner, clock=None, steps=97, backscan=False, poll_limit_seconds=10.0, lamp=False, as_move_1=False):
     """Run run() and return the exit code and the log records."""
     clock = clock or FakeClock(scanner)
     log_file = io.StringIO()
     with contextlib.redirect_stdout(io.StringIO()):
         exit_code = move_carrier.run(flash_dump.Session(scanner, log_file), clock.environment(), steps, backscan,
-                                     poll_limit_seconds, lamp)
+                                     poll_limit_seconds, lamp, as_move_1)
     return exit_code, [json.loads(line) for line in log_file.getvalue().splitlines()]
 
 
@@ -640,13 +688,17 @@ class ErrorTests(unittest.TestCase):
                 self.assertIn(move_carrier.SLOPE_TABLE_SHA256, records_of_kind(records, "refused")[0]["reason"])
 
 
+def assert_refused(test_case, request, plan):
+    """The request raises PermissionError in transfer() and never reaches the device."""
+    scanner = FakeScanner()
+    with test_case.assertRaises(PermissionError):
+        move_carrier.transfer(flash_dump.Session(scanner, io.StringIO()), plan, request)
+    test_case.assertEqual(scanner.transfers, [])
+
+
 class SafetyTests(unittest.TestCase):
     def refused(self, request, plan=None):
-        scanner = FakeScanner()
-        plan = plan or move_carrier.MovePlan(97, False)
-        with self.assertRaises(PermissionError):
-            move_carrier.transfer(flash_dump.Session(scanner, io.StringIO()), plan, request)
-        self.assertEqual(scanner.transfers, [])
+        assert_refused(self, request, plan or move_carrier.MovePlan(97, False))
 
     def test_requests_outside_the_move_never_reach_the_device(self):
         refused = [
@@ -813,6 +865,211 @@ class ArgumentTests(unittest.TestCase):
                           move_carrier.EXIT_TABLE_HASH),
                          (0, 10, 13, 16, 19, 22, 23, 24))
         self.assertNotIn(move_carrier.EXIT_OPEN_NOT_SENT, (vendor_open.EXIT_DROPPED, vendor_open.EXIT_CARRIER_NOT_HOME))
+
+
+@unittest.skipUnless(CAPTURE_PATH.exists(), CAPTURE_MISSING)
+class MoveOneCaptureTests(unittest.TestCase):
+    def test_register_state_and_afe_write_are_the_capture_at_move_1_where_it_differs_from_the_open(self):
+        at_move_1 = shadow_of_capture(CAPTURE_PATH, FIRST_FRAME, MOVE_1_START_FRAME)
+        after_open = shadow_of_open()
+        expected = {register: value for register, value in at_move_1.items()
+                    if register not in MOVE_1_EXCLUDED_REGISTERS | MOVE_1_BLOCK_REGISTERS
+                    and after_open.get(register) != value}
+        afe = move_carrier.AFE_WRITE.sent
+        sent = {**dict(move_carrier.REGISTER_STATE_MOVE_1),
+                **{afe[position]: afe[position + 1] for position in range(0, len(afe), 2)
+                   if after_open.get(afe[position]) != afe[position + 1]}}
+        self.assertEqual(sent, expected)
+        self.assertEqual(move_carrier.REGISTER_STATE_MOVE_1, tuple(sorted(
+            (register, value) for register, value in expected.items() if register not in AFE_REGISTERS)))
+
+    def test_register_state_at_the_start_write_equals_the_capture_except_feedl(self):
+        scanner = FakeScanner(WORKING_UNIT_MOVE_1_REGISTERS)
+        self.assertEqual(run_move(scanner, as_move_1=True)[0], move_carrier.EXIT_GOOD)
+        start = scanner.transfers.index(write_transfer("0f01"))
+        at_start = replay_register_writes(shadow_of_open(), scanner.transfers[:start + 1])
+        at_move_1 = shadow_of_capture(CAPTURE_PATH, FIRST_FRAME, MOVE_1_START_FRAME)
+        differing = {register: (at_start.get(register), at_move_1.get(register))
+                     for register in set(at_start) | set(at_move_1)
+                     if at_start.get(register) != at_move_1.get(register)}
+        self.assertEqual(differing, {0x3E: (0x00, 0x27), 0x3F: (0x61, 0xAE)})  # FEEDL 97 against 10158
+
+    def test_capture_state_at_move_1_and_move_3_differs_in_0x33_feedl_and_fmovno(self):
+        at_move_1 = shadow_of_capture(CAPTURE_PATH, FIRST_FRAME, MOVE_1_START_FRAME)
+        at_move_3 = shadow_of_capture(CAPTURE_PATH, FIRST_FRAME, START_FRAME)
+        differing = {register: (at_move_1.get(register), at_move_3.get(register))
+                     for register in set(at_move_1) | set(at_move_3)
+                     if at_move_1.get(register) != at_move_3.get(register)}
+        self.assertEqual(differing, {0x33: (0x1C, 0x3C), 0x3E: (0x27, 0x00), 0x3F: (0xAE, 0x61),
+                                     0xAF: (0x7F, 0xFF)})
+
+    def test_from_6257_to_the_start_the_vendor_writes_only_the_block_and_the_start(self):
+        submits = [record for record in capture_records(CAPTURE_PATH, 6257, MOVE_1_START_FRAME)
+                   if record["event"] == "submit"]
+        register_writes = [transfer_of(submit) for submit in submits if submit["transfer_type"] == "control"
+                           and submit["setup"]["bmRequestType"] == 0x40 and submit["setup"]["wValue"] == 0x83]
+        self.assertEqual(register_writes, [write_transfer(MOVE_1_BLOCK_10158.replace(" ", "")),
+                                           write_transfer("0f01")])
+        self.assertEqual([submit["transfer_type"] for submit in submits if submit["transfer_type"] == "interrupt"],
+                         ["interrupt"])
+        self.assertEqual(move_carrier.MOVE_1_BLOCK_CAPTURED, bytes.fromhex(MOVE_1_BLOCK_10158))
+
+    def test_last_writes_of_0x33_and_0x0a_before_move_1(self):
+        last_writes = {}
+        for record in capture_records(CAPTURE_PATH, FIRST_FRAME, MOVE_1_START_FRAME):
+            setup = record.get("setup", {})
+            if record["event"] == "submit" and setup.get("bmRequestType") == 0x40 and setup["wValue"] == 0x0083:
+                data = bytes.fromhex(record["data_hex"])
+                for position in range(0, len(data), 2):
+                    last_writes[data[position]] = (record["frame"], data[position + 1])
+        self.assertEqual(last_writes[0x33], (6085, 0x1C))
+        self.assertEqual(last_writes[0x0A], (6189, 0x48))
+        self.assertEqual(move_carrier.REGISTER_33_BEFORE_MOVE_1.frame, 6085)
+
+    def test_a_move_1_run_sends_frames_6259_to_6283_with_its_feedl(self):
+        captured = submits_with_answers(capture_records(CAPTURE_PATH, 6259, 6284))
+        expected = [transfer_of(submit) for submit, _ in captured]
+        expected[0] = write_transfer(MOVE_1_BLOCK_10158.replace("3d00 3e27 3fae", "3d00 3e00 3f61"))
+        self.assertEqual(captured[-1][0]["frame"], 6283)
+        scanner = FakeScanner(WORKING_UNIT_MOVE_1_REGISTERS)
+        self.assertEqual(run_move(scanner, as_move_1=True)[0], move_carrier.EXIT_GOOD)
+        block_index = MOVE_1_START + 2
+        self.assertEqual(scanner.transfers[block_index:block_index + len(expected)], expected)
+        self.assertEqual(captured[-1][1], bytes([0xDD, 0x55]))
+
+    def test_captured_answers_match_the_working_unit(self):
+        captured = dict((submit["frame"], answer) for submit, answer in
+                        submits_with_answers(capture_records(CAPTURE_PATH, 6259, 6330)))
+        read = move_carrier.MOVE_1_READ_0X101
+        self.assertEqual(captured[read.frame], bytes([read.captured, 0x55]))
+        for request in (upload[2] for upload in move_carrier.TABLE_UPLOADS_MOVE_1):
+            with self.subTest(frame=request.frame):
+                self.assertEqual(captured[request.frame], request.captured)
+
+
+class MoveOneTests(unittest.TestCase):
+    def test_slope_table_equals_the_hex_dump_and_the_readme_hash(self):
+        self.assertEqual(move_carrier.SLOPE_TABLE_MOVE_1, bytes_from_xxd(TABLES_DIRECTORY / "slope-6267.hex"))
+        for _, upload, _ in move_carrier.TABLE_UPLOADS_MOVE_1:
+            self.assertEqual(upload.sent, move_carrier.SLOPE_TABLE_MOVE_1)
+        readme = (TABLES_DIRECTORY / "README.md").read_text()
+        row = next(line for line in readme.splitlines() if line.startswith("| `slope-6267.hex`"))
+        match = re.search(r"`([0-9a-f]{64})`", row)
+        self.assertIsNotNone(match)
+        assert match is not None
+        self.assertEqual(match.group(1), move_carrier.SLOPE_TABLE_MOVE_1_SHA256)
+        self.assertEqual(MOVE_1_TABLE_SHA256, move_carrier.SLOPE_TABLE_MOVE_1_SHA256)
+
+    def test_register_state_shape(self):
+        registers = [register for register, _ in move_carrier.REGISTER_STATE_MOVE_1]
+        self.assertEqual(registers, sorted(set(registers)))
+        self.assertFalse(set(registers) & (MOVE_1_EXCLUDED_REGISTERS | MOVE_1_BLOCK_REGISTERS | AFE_REGISTERS))
+        self.assertEqual(len(registers), 74)
+        self.assertEqual([len(request.sent) // 2 for request in move_carrier.REGISTER_STATE_MOVE_1_WRITES],
+                         [32, 32, 10])
+        after_open = shadow_of_open()
+        for register, value in move_carrier.REGISTER_STATE_MOVE_1:
+            with self.subTest(register=f"{register:02x}"):
+                self.assertNotEqual(after_open.get(register), value)
+
+    def test_the_two_state_tables_differ_only_in_what_the_blocks_write(self):
+        move_1 = dict(move_carrier.REGISTER_STATE_MOVE_1)
+        move_3 = dict(move_carrier.REGISTER_STATE)
+        self.assertEqual({register: value for register, value in move_1.items() if register not in move_3},
+                         {0x8A: 0x00, 0x8B: 0x55, 0x8C: 0x00, 0x8D: 0x00, 0x8E: 0x55, 0x8F: 0x00, 0x90: 0x01,
+                          0x91: 0x54, 0x92: 0x00})
+        self.assertTrue(set(move_1) - set(move_3) <= FEED_BLOCK_REGISTERS)
+        self.assertTrue(set(move_3) - set(move_1) <= MOVE_1_BLOCK_REGISTERS)
+        self.assertEqual({register for register in move_1
+                          if register in move_3 and move_1[register] != move_3[register]}, set())
+
+    def test_move_1_block_sets_feedl_big_endian(self):
+        positions = move_carrier.MOVE_1_FEEDL_VALUE_POSITIONS
+        self.assertEqual(bytes(move_carrier.MOVE_1_BLOCK_CAPTURED[positions.start - 1:positions.stop:2]),
+                         bytes([0x3D, 0x3E, 0x3F]))
+        self.assertEqual(move_carrier.move_1_block(97).sent,
+                         bytes.fromhex(MOVE_1_BLOCK_10158.replace("3d00 3e27 3fae", "3d00 3e00 3f61")))
+        self.assertEqual(move_carrier.move_1_block(97).frame, 6259)
+        for steps in (0, 1001, 10158):
+            with self.subTest(steps=steps):
+                with self.assertRaises(PermissionError):
+                    move_carrier.move_1_block(steps)
+
+    def test_move_1_run_sends_the_listed_requests_and_exits_zero(self):
+        scanner = FakeScanner(WORKING_UNIT_MOVE_1_REGISTERS)
+        exit_code, records = run_move(scanner, as_move_1=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_GOOD)
+        self.assertEqual(scanner.transfers, run_move_1_transfers())
+        self.assertEqual([record["frame"] for record in records_of_kind(records, "bulk_write")], [6267, 6275])
+        self.assertEqual(records_of_kind(records, "register_read")[-1]["frame"], 6327)
+        self.assertNotIn(write_transfer("0330"), scanner.transfers)
+        self.assertEqual(scanner.transfers.count(write_transfer("0300")), 1)
+
+    def test_move_1_steps_set_feedl(self):
+        scanner = FakeScanner(WORKING_UNIT_MOVE_1_REGISTERS)
+        self.assertEqual(run_move(scanner, steps=1000, as_move_1=True)[0], move_carrier.EXIT_GOOD)
+        self.assertEqual(scanner.transfers, run_move_1_transfers(feedl_hex="0003e8"))
+
+    def test_move_1_timeout_cuts_then_ends_with_motor_power_and_lamp_off(self):
+        scanner = FakeScanner({**WORKING_UNIT_MOVE_1_REGISTERS, 0x101: [0xDC] + [0xDD] * 8 + [0xF5, 0xF4]})
+        exit_code, records = run_move(scanner, poll_limit_seconds=0.1, as_move_1=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_MOTOR_TIMEOUT)
+        self.assertEqual(scanner.transfers, run_move_1_transfers(polls=8, polls_after_cut=2))
+        move_end = records_of_kind(records, "move_end")[0]
+        self.assertEqual((move_end["cut_sent"], move_end["motorenb_cleared_after_cut"]), (True, True))
+
+    def test_move_1_gate_refusal_sends_no_write(self):
+        scanner = FakeScanner({**WORKING_UNIT_MOVE_1_REGISTERS, 0x101: 0x4C})
+        self.assertEqual(run_move(scanner, as_move_1=True)[0], move_carrier.EXIT_OPEN_NOT_SENT)
+        self.assertEqual(scanner.transfers, LOGGED_READ_TRANSFERS)
+
+    def test_every_request_of_a_move_1_run_is_logged_and_checked(self):
+        scanner = FakeScanner(WORKING_UNIT_MOVE_1_REGISTERS)
+        with unittest.mock.patch.object(move_carrier, "check_allowed", wraps=move_carrier.check_allowed) as check, \
+                unittest.mock.patch.object(vendor_open, "read_register", wraps=vendor_open.read_register) as read:
+            _, records = run_move(scanner, as_move_1=True)
+        self.assertEqual(check.call_count + read.call_count, len(scanner.transfers))
+        request_kinds = {"register_state_write", "register_write", "register_read", "buffer_header", "bulk_write",
+                         "upload_status_read", "link_check", "poll"}
+        logged = len([record for record in records if record["kind"] in request_kinds])
+        summaries = len(records_of_kind(records, "registers_before") + records_of_kind(records, "registers_after"))
+        self.assertEqual(logged + summaries * len(LOGGED_READ_TRANSFERS), len(scanner.transfers))
+
+    def test_move_1_table_hash_mismatch_sends_nothing_and_exits_24(self):
+        uploads = list(move_carrier.TABLE_UPLOADS_MOVE_1)
+        header, upload, status = uploads[1]
+        uploads[1] = (header, dataclasses.replace(upload, sent=move_carrier.SLOPE_TABLE), status)
+        scanner = FakeScanner(WORKING_UNIT_MOVE_1_REGISTERS)
+        with unittest.mock.patch.object(move_carrier, "TABLE_UPLOADS_MOVE_1", tuple(uploads)):
+            exit_code, records = run_move(scanner, as_move_1=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_TABLE_HASH)
+        self.assertEqual(scanner.transfers, [])
+        self.assertIn(move_carrier.SLOPE_TABLE_MOVE_1_SHA256, records_of_kind(records, "refused")[0]["reason"])
+
+    def test_move_3_requests_are_refused_in_a_move_1_run_and_the_other_way_round(self):
+        move_1_plan = move_carrier.MovePlan(97, True, lamp=True, as_move_1=True, register_33_read=0x1C)
+        for request in (move_carrier.BEFORE_WRITE_0X02, move_carrier.BEFORE_WRITE_0X0A, move_carrier.feed_block(97),
+                        move_carrier.TABLE_UPLOADS[0][1], move_carrier.register_33_write(6459, 0x3C),
+                        move_carrier.BACKSCAN_SET, move_carrier.BACKSCAN_CLEAR, move_carrier.LAMP_AS_CAPTURED,
+                        move_carrier.REGISTER_STATE_WRITES[0], move_carrier.move_1_block(98)):
+            with self.subTest(variant="move 1", request=request.kind, sent=request.sent[:6].hex()):
+                assert_refused(self, request, move_1_plan)
+        for request in (move_carrier.move_1_block(97), move_carrier.TABLE_UPLOADS_MOVE_1[0][1],
+                        move_carrier.REGISTER_STATE_MOVE_1_WRITES[0]):
+            with self.subTest(variant="move 3", request=request.kind, sent=request.sent[:6].hex()):
+                assert_refused(self, request, move_carrier.MovePlan(97, False))
+
+    def test_backscan_and_lamp_as_captured_are_refused_with_as_move_1(self):
+        self.assertTrue(move_carrier.parse_arguments(["logs", "--as-move-1"]).as_move_1)
+        self.assertFalse(move_carrier.parse_arguments(["logs"]).as_move_1)
+        for flag in ("--backscan", "--lamp-as-captured"):
+            with self.subTest(flag=flag):
+                with contextlib.redirect_stderr(io.StringIO()) as error_output:
+                    with self.assertRaises(SystemExit) as raised:
+                        move_carrier.parse_arguments(["logs", "--as-move-1", flag])
+                self.assertEqual(raised.exception.code, 2)
+                self.assertIn(flag, error_output.getvalue())
+                move_carrier.parse_arguments(["logs", flag])
 
 
 if __name__ == "__main__":
