@@ -1,0 +1,4 @@
+{"time": "2026-10-15T12:15:58.248+00:00", "kind": "device", "vendor_id": "05e3", "product_id": "0103", "bcd_device": "0702", "watch_seconds": 0, "carrier_off_home_ok": false}
+{"time": "2026-10-15T12:15:58.254+00:00", "kind": "registers_before_open", "0x101": "45", "0x31": "fc", "0x34": "00", "0x36": "00", "0x33": "1e", "0x0a": "80", "0x02": "00", "0x06": "00"}
+{"time": "2026-10-15T12:15:58.254+00:00", "kind": "refused", "0x101": "45", "reason": "HOMESNR clear or MOTORENB set, --carrier-off-home-ok skips this check"}
+{"time": "2026-10-15T12:15:58.254+00:00", "kind": "exit", "code": 21}

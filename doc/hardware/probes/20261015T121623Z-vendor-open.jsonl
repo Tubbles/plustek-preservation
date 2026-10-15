@@ -1,0 +1,67 @@
+{"time": "2026-10-15T12:16:23.606+00:00", "kind": "device", "vendor_id": "05e3", "product_id": "0103", "bcd_device": "0702", "watch_seconds": 0, "carrier_off_home_ok": false}
+{"time": "2026-10-15T12:16:23.612+00:00", "kind": "registers_before_open", "0x101": "4c", "0x31": "bc", "0x34": "00", "0x36": "00", "0x33": "1e", "0x0a": "80", "0x02": "00", "0x06": "00"}
+{"time": "2026-10-15T12:16:23.613+00:00", "kind": "vendor_read", "frame": 15, "request_type": "c0", "request": "0c", "value": "008a", "index": "26fe", "received": "01", "captured": "00", "differs": true}
+{"time": "2026-10-15T12:16:23.642+00:00", "kind": "register_write", "frame": 17, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "01 22 02 78 03 20 04 02 05 c8 06 18 07 00 08 80 09 00 0a 48 0b 6c 0c 00 0d 00 11 00 12 04 13 08 14 01 15 80 16 01 17 0c 18 14 19 00 1a 00 1b 00 1c 00 1d 00 1e 10 1f 00 20 0c 21 00 22 1a 23 00"}
+{"time": "2026-10-15T12:16:23.643+00:00", "kind": "link_check", "after_frame": 17, "received": "55"}
+{"time": "2026-10-15T12:16:23.644+00:00", "kind": "register_write", "frame": 21, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "24 1a 25 00 26 00 27 00 2b 20 2c 12 2d c0 30 6f 31 fc 32 6b 33 0e 34 80 35 7f 36 fc 37 30 38 77 39 02 3a 00 3b ff 3c ff 3d 00 3e 00 3f 01 4f 03 52 07 53 09 54 0b 55 01 56 03 57 05 5a 12 5b 00"}
+{"time": "2026-10-15T12:16:23.645+00:00", "kind": "link_check", "after_frame": 21, "received": "55"}
+{"time": "2026-10-15T12:16:23.646+00:00", "kind": "register_write", "frame": 25, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "5c 00 5e 1f 5f 01 60 00 61 00 63 20 67 7f 68 7f 69 01 70 06 71 09 72 08 73 09 74 00 75 00 76 00 77 00 78 00 79 00 7a 00 7b 00 7c 00 7d 00 7e 75 7f 30 80 00 81 22 82 00 83 01 84 18 85 00 86 00"}
+{"time": "2026-10-15T12:16:23.647+00:00", "kind": "link_check", "after_frame": 25, "received": "55"}
+{"time": "2026-10-15T12:16:23.648+00:00", "kind": "register_write", "frame": 29, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "87 00 93 00 94 00 95 00 9d 08 a0 12 a4 00 a5 20 a6 00 a7 80 a8 00 a9 80 aa 00 ab 30 b8 00 b9 38 ba 00 bd 00 be 00 bf 00"}
+{"time": "2026-10-15T12:16:23.649+00:00", "kind": "link_check", "after_frame": 29, "received": "55"}
+{"time": "2026-10-15T12:16:23.650+00:00", "kind": "register_write", "frame": 33, "request_type": "40", "request": "04", "value": "0183", "index": "0000", "sent": "14 80 15 80"}
+{"time": "2026-10-15T12:16:23.651+00:00", "kind": "link_check", "after_frame": 33, "received": "55"}
+{"time": "2026-10-15T12:16:23.652+00:00", "kind": "usb_register_write", "frame": 37, "request_type": "40", "request": "0c", "value": "008c", "index": "0010", "sent": "0d"}
+{"time": "2026-10-15T12:16:23.653+00:00", "kind": "link_check", "after_frame": 37, "received": "55"}
+{"time": "2026-10-15T12:16:23.654+00:00", "kind": "usb_register_write", "frame": 41, "request_type": "40", "request": "0c", "value": "008c", "index": "0013", "sent": "0d"}
+{"time": "2026-10-15T12:16:23.655+00:00", "kind": "link_check", "after_frame": 41, "received": "55"}
+{"time": "2026-10-15T12:16:23.656+00:00", "kind": "register_write", "frame": 45, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "0b 64"}
+{"time": "2026-10-15T12:16:23.657+00:00", "kind": "link_check", "after_frame": 45, "received": "55"}
+{"time": "2026-10-15T12:16:23.658+00:00", "kind": "register_write", "frame": 49, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "13 0f"}
+{"time": "2026-10-15T12:16:23.659+00:00", "kind": "link_check", "after_frame": 49, "received": "55"}
+{"time": "2026-10-15T12:16:23.660+00:00", "kind": "register_write", "frame": 53, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "0b 6c"}
+{"time": "2026-10-15T12:16:23.660+00:00", "kind": "link_check", "after_frame": 53, "received": "55"}
+{"time": "2026-10-15T12:16:23.674+00:00", "kind": "flash_write", "frame": 57, "request_type": "40", "request": "0c", "value": "008b", "index": "0007", "sent": "01"}
+{"time": "2026-10-15T12:16:23.675+00:00", "kind": "link_check", "after_frame": 57, "received": "55"}
+{"time": "2026-10-15T12:16:23.676+00:00", "kind": "flash_write", "frame": 61, "request_type": "40", "request": "04", "value": "008b", "index": "0009", "sent": "00 00 00 00"}
+{"time": "2026-10-15T12:16:23.677+00:00", "kind": "link_check", "after_frame": 61, "received": "55"}
+{"time": "2026-10-15T12:16:23.678+00:00", "kind": "flash_read", "frame": 65, "request_type": "c0", "request": "04", "value": "008a", "index": "0010", "received": "1c 31 13", "captured": "c2 20 13", "differs": true}
+{"time": "2026-10-15T12:16:23.679+00:00", "kind": "flash_write", "frame": 67, "request_type": "40", "request": "04", "value": "008b", "index": "000b", "sent": "00 00 00 00"}
+{"time": "2026-10-15T12:16:23.680+00:00", "kind": "link_check", "after_frame": 67, "received": "55"}
+{"time": "2026-10-15T12:16:23.681+00:00", "kind": "flash_read", "frame": 71, "request_type": "c0", "request": "04", "value": "008a", "index": "000f", "received": "b4 14 00 00 27 02 00 00 0f 29 00 00 a2 02 00 00 4f 02 00 00 e3 28 00 00 ba 02 00 00 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff", "captured": "b4 14 00 00 1d 02 00 00 ff 28 00 00 44 02 00 00 4a 02 00 00 dd 28 00 00 58 02 00 00 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff", "differs": true}
+{"time": "2026-10-15T12:16:23.751+00:00", "kind": "register_read", "frame": 73, "request_type": "c0", "request": "04", "value": "018e", "index": "0122", "received": "dc 55", "captured": "dc 55", "differs": false}
+{"time": "2026-10-15T12:16:23.752+00:00", "kind": "register_read", "frame": 75, "request_type": "c0", "request": "04", "value": "018e", "index": "0122", "received": "dc 55", "captured": "dc 55", "differs": false}
+{"time": "2026-10-15T12:16:23.753+00:00", "kind": "register_write", "frame": 77, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "03 00"}
+{"time": "2026-10-15T12:16:23.754+00:00", "kind": "link_check", "after_frame": 77, "received": "55"}
+{"time": "2026-10-15T12:16:23.755+00:00", "kind": "register_write", "frame": 81, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "51 00 5d 00 5e f8"}
+{"time": "2026-10-15T12:16:23.756+00:00", "kind": "link_check", "after_frame": 81, "received": "55"}
+{"time": "2026-10-15T12:16:23.757+00:00", "kind": "register_write", "frame": 85, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "51 01 5d 00 5e 80"}
+{"time": "2026-10-15T12:16:23.758+00:00", "kind": "link_check", "after_frame": 85, "received": "55"}
+{"time": "2026-10-15T12:16:23.759+00:00", "kind": "register_write", "frame": 89, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "51 02 5d 00 5e 00"}
+{"time": "2026-10-15T12:16:23.759+00:00", "kind": "link_check", "after_frame": 89, "received": "55"}
+{"time": "2026-10-15T12:16:23.761+00:00", "kind": "register_write", "frame": 93, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "51 03 5d 00 5e 00"}
+{"time": "2026-10-15T12:16:23.761+00:00", "kind": "link_check", "after_frame": 93, "received": "55"}
+{"time": "2026-10-15T12:16:23.762+00:00", "kind": "register_write", "frame": 97, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "51 04 5d 00 5e 00"}
+{"time": "2026-10-15T12:16:23.763+00:00", "kind": "link_check", "after_frame": 97, "received": "55"}
+{"time": "2026-10-15T12:16:23.764+00:00", "kind": "register_write", "frame": 101, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "51 05 5d 00 5e 00"}
+{"time": "2026-10-15T12:16:23.765+00:00", "kind": "link_check", "after_frame": 101, "received": "55"}
+{"time": "2026-10-15T12:16:23.766+00:00", "kind": "register_write", "frame": 105, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "51 06 5d 00 5e 00"}
+{"time": "2026-10-15T12:16:23.767+00:00", "kind": "link_check", "after_frame": 105, "received": "55"}
+{"time": "2026-10-15T12:16:23.768+00:00", "kind": "register_write", "frame": 109, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "51 07 5d 00 5e 00"}
+{"time": "2026-10-15T12:16:23.769+00:00", "kind": "link_check", "after_frame": 109, "received": "55"}
+{"time": "2026-10-15T12:16:23.770+00:00", "kind": "register_read", "frame": 113, "request_type": "c0", "request": "04", "value": "008e", "index": "3622", "received": "fc 55", "captured": "fc 55", "differs": false}
+{"time": "2026-10-15T12:16:23.771+00:00", "kind": "register_write", "frame": 115, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "36 fe"}
+{"time": "2026-10-15T12:16:23.772+00:00", "kind": "link_check", "after_frame": 115, "received": "55"}
+{"time": "2026-10-15T12:16:23.773+00:00", "kind": "register_read", "frame": 119, "request_type": "c0", "request": "04", "value": "008e", "index": "3322", "received": "0e 55", "captured": "0e 55", "differs": false}
+{"time": "2026-10-15T12:16:23.774+00:00", "kind": "register_write", "frame": 121, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "33 0e"}
+{"time": "2026-10-15T12:16:23.775+00:00", "kind": "link_check", "after_frame": 121, "received": "55"}
+{"time": "2026-10-15T12:16:23.776+00:00", "kind": "vendor_read", "frame": 125, "request_type": "c0", "request": "0c", "value": "008e", "index": "0000", "received": "00", "captured": "00", "differs": false}
+{"time": "2026-10-15T12:16:23.776+00:00", "kind": "register_read", "frame": 127, "request_type": "c0", "request": "04", "value": "008e", "index": "3122", "received": "bc 55", "captured": "be 55", "differs": true}
+{"time": "2026-10-15T12:16:23.777+00:00", "kind": "register_write", "frame": 129, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "31 3e"}
+{"time": "2026-10-15T12:16:23.778+00:00", "kind": "link_check", "after_frame": 129, "received": "55"}
+{"time": "2026-10-15T12:16:23.792+00:00", "kind": "register_read", "frame": 133, "request_type": "c0", "request": "04", "value": "008e", "index": "3122", "received": "3c 55", "captured": "3e 55", "differs": true}
+{"time": "2026-10-15T12:16:23.793+00:00", "kind": "register_write", "frame": 135, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "31 be"}
+{"time": "2026-10-15T12:16:23.794+00:00", "kind": "link_check", "after_frame": 135, "received": "55"}
+{"time": "2026-10-15T12:16:23.794+00:00", "kind": "open_done", "last_frame": 135}
+{"time": "2026-10-15T12:16:23.797+00:00", "kind": "watch", "seconds_since_open": 0.0, "link_check": "aa", "0x101": "dc"}
+{"time": "2026-10-15T12:16:23.797+00:00", "kind": "exit", "code": 0}

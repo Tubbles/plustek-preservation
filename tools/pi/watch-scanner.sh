@@ -14,6 +14,8 @@
 # ~/plustek-preservation/open-enabled exists and the probe is disabled
 # (the owner's standing permission of 2026-10-15, CLAUDE.md). Its own
 # gate refuses the run unless the carrier is at home with the motor idle.
+# A restart treats a unit already on the bus as a new appearance and sends
+# the open again (a warm re-run, doc/hardware/usb.md, "Register snapshot").
 #
 # Usage: watch-scanner.sh [vendor:product] [log directory]
 vendor_product="${1:-05e3:0103}"
@@ -42,9 +44,23 @@ while true; do
             fi
             if [ -f "$open_enabled" ] && [ -f "$probe_disabled" ] && [ -f "$open_script" ] \
                 && [ -f "$project_directory/flash_dump.py" ] && [ -x "$venv_python" ]; then
-                sudo -n "$venv_python" "$open_script" "$log_directory/vendor-open" --watch-seconds 0 \
-                    > /dev/null 2>> "$log_directory/events.log"
-                echo "$stamp open exit $?" >> "$log_directory/events.log"
+                # After a power cycle the firmware homes the carrier, and the open's gate refuses
+                # (exit 21) while the carrier is off home or the motor runs. On 2026-10-15 the
+                # homing from one inch out was still running 1.3 s after the enumeration and had
+                # ended 26 s after it. Retry every 5 s for up to 90 s, so that a wake during the
+                # homing still ends with the unit held.
+                open_tries=0
+                while true; do
+                    sudo -n "$venv_python" "$open_script" "$log_directory/vendor-open" --watch-seconds 0 \
+                        > /dev/null 2>> "$log_directory/events.log"
+                    open_exit=$?
+                    open_tries=$((open_tries + 1))
+                    echo "$(date -u +%Y%m%dT%H%M%SZ) open exit $open_exit (try $open_tries)" >> "$log_directory/events.log"
+                    if [ "$open_exit" != 21 ] || [ "$open_tries" -ge 18 ]; then
+                        break
+                    fi
+                    sleep 5
+                done
             fi
             if [ -f "$probe_disabled" ]; then
                 echo "$stamp probe disabled" >> "$log_directory/events.log"
