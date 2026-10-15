@@ -5,6 +5,7 @@
 - Serial numbers (SilverFast license serials, the scanner's hardware serial), the owner's registration email, and the scans of the DVD case and sticky note are sensitive. They live only in `work/sensitive.md` and outside the repository. Never write them into tracked files, commit messages, logs or captures that get committed.
 - USB captures may contain the hardware serial or license data. Keep raw captures in `work/captures/`. Only commit captures or excerpts after checking them for such data.
 - Downloaded vendor binaries stay in `work/downloads/` (untracked, see `work/downloads/MANIFEST.md`). They are for analysis only: never run them on the host outside a VM or Wine prefix set up for that purpose, and never commit them.
+- Decompiled and disassembled output of the vendor engines stays in `work/re/` and `work/re-win/` (untracked, regenerated with `tools/ghidra/README.md`). Owner's decision 2026-10-15: not checked in. Commit the scripts and the findings, with function names and addresses as the references.
 
 ## Hosts
 
