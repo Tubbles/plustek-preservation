@@ -26,7 +26,7 @@ Exit: a library of annotated USB captures.
 
 ### 4. Protocol reverse engineering
 
-Combine static analysis of the vendor driver binaries with the captures: command set, register map, motor and lamp control, calibration (dark and white shading), data format of the image stream, infrared channel, buttons and status.
+Combine static analysis of the vendor driver binaries with the captures: command set, register map, motor and lamp control, calibration (dark and white shading), data format of the image stream, infrared channel, buttons and status. The engine's code is the playbook and the capture the check (`doc/work/0012-driver-playbook.md`); each sequence is mapped onto the pyopticfilm function that does the same job for the other GL128 OpticFilms, so phase 5 starts from a model configuration rather than from scratch.
 
 Exit: `doc/protocol/` documents enough to write a driver from it.
 
