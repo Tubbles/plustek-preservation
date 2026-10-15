@@ -132,8 +132,9 @@ unit and the owner stays at the power switch. The direction is decided
 beforehand: without --backscan the carrier moves away from the home
 sensor (inference, doc/protocol/of120-moves.md, "Direction"). The tool
 refuses to start while the file is missing or a probe_readonly.py,
-keep_awake.py, vendor_open.py, flash_dump.py, eeprom_read.py or other
-move_carrier.py process runs. Each run needs the owner's go-ahead.
+keep_awake.py, vendor_open.py, flash_dump.py, eeprom_read.py,
+snapshot.py or other move_carrier.py process runs. Each run needs the
+owner's go-ahead.
 
 Every run writes LOG_DIRECTORY/<UTC stamp>/log.jsonl: one line per request
 (kind, the capture frame it replays, setup fields, bytes sent or the
@@ -196,7 +197,7 @@ DEFAULT_POLL_LIMIT_SECONDS = 10.0
 AFTER_CUT_POLL_LIMIT_SECONDS = 5.0
 TABLE_ADDRESSES = (0x1000C000, 0x10010000)
 # probe_readonly.py and keep_awake.py are refused by vendor_open.refusal_exit_code.
-CONFLICTING_TOOL_NAMES = (b"vendor_open.py", b"move_carrier.py", b"flash_dump.py", b"eeprom_read.py")
+CONFLICTING_TOOL_NAMES = (b"vendor_open.py", b"move_carrier.py", b"flash_dump.py", b"eeprom_read.py", b"snapshot.py")
 
 EXIT_OPEN_NOT_SENT = 22
 EXIT_MOTOR_TIMEOUT = 23
@@ -829,8 +830,8 @@ def main() -> int:
     refusal = refusal_exit_code(probe_disabled, pathlib.Path("/proc"), os.getpid(), device)
     if refusal is not None:
         messages = {EXIT_PROBE_ACTIVE: f"create {probe_disabled} and wait until no probe_readonly.py, "
-                                       "keep_awake.py, vendor_open.py, flash_dump.py, eeprom_read.py or other "
-                                       "move_carrier.py process runs",
+                                       "keep_awake.py, vendor_open.py, flash_dump.py, eeprom_read.py, snapshot.py "
+                                       "or other move_carrier.py process runs",
                     EXIT_NOT_FOUND: "scanner not found",
                     EXIT_WRONG_CHIP: f"bcdDevice is not 0x{GL128_BCD_DEVICE:04x}"}
         print(messages[refusal], file=sys.stderr)

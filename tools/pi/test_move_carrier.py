@@ -814,7 +814,7 @@ class RefusalTests(unittest.TestCase):
 
     def test_another_scanner_tool_running_is_exit_16(self):
         for pid, script in enumerate((b"probe_readonly.py", b"keep_awake.py", b"vendor_open.py", b"flash_dump.py",
-                                      b"eeprom_read.py", b"move_carrier.py"), start=400):
+                                      b"eeprom_read.py", b"move_carrier.py", b"snapshot.py"), start=400):
             with self.subTest(script=script):
                 self.add_process(pid, [b"sudo", b"/home/pi/plustek-preservation/venv/bin/python",
                                        b"/home/pi/plustek-preservation/" + script])
