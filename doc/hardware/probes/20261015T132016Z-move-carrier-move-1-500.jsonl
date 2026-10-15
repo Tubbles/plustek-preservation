@@ -1,0 +1,86 @@
+{"time": "2026-10-15T13:20:16.391+00:00", "kind": "device", "vendor_id": "05e3", "product_id": "0103", "bcd_device": "0702", "steps": 500, "backscan": false, "poll_limit_seconds": 10.0, "lamp": false, "as_move_1": true, "home": false}
+{"time": "2026-10-15T13:20:16.396+00:00", "kind": "registers_before", "0x101": "dc", "0x31": "bc", "0x33": "0e", "0x36": "fe", "0x02": "78"}
+{"time": "2026-10-15T13:20:16.398+00:00", "kind": "register_state_write", "frame": null, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "13 08 16 b7 18 40 20 05 22 06 24 0f 28 00 29 55 2a 8a 31 fc 37 32 52 08 53 0a 54 00 55 02 56 04 57 06 58 07 59 07 5a 11 5b 49 5f 00 61 98 70 02 71 03 72 04 73 05 76 3f 79 3f 7c 3f 88 00 89 00"}
+{"time": "2026-10-15T13:20:16.400+00:00", "kind": "link_check", "after_frame": null, "after": "register_state_write", "received": "55"}
+{"time": "2026-10-15T13:20:16.402+00:00", "kind": "register_state_write", "frame": null, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "8a 00 8b 55 8c 00 8d 00 8e 55 8f 00 90 01 91 54 92 00 a0 0a a2 00 a3 00 ac 00 ad 01 d0 0a d1 0a d2 0a e0 00 e1 c8 e2 15 e3 fb e4 15 e5 fc e6 2b e7 2f e8 2b e9 30 ea 40 eb 63 ec 40 ed 64 ee 55"}
+{"time": "2026-10-15T13:20:16.403+00:00", "kind": "link_check", "after_frame": null, "after": "register_state_write", "received": "55"}
+{"time": "2026-10-15T13:20:16.405+00:00", "kind": "register_state_write", "frame": null, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "ef 97 f0 55 f1 98 f2 6a f3 cb f4 6a f5 cc f6 7f f7 ff f8 05"}
+{"time": "2026-10-15T13:20:16.406+00:00", "kind": "link_check", "after_frame": null, "after": "register_state_write", "received": "55"}
+{"time": "2026-10-15T13:20:16.408+00:00", "kind": "register_write", "frame": 6175, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "51 04 5d 00 5e 2a"}
+{"time": "2026-10-15T13:20:16.409+00:00", "kind": "link_check", "after_frame": 6175, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:16.411+00:00", "kind": "register_write", "frame": 6085, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "33 1c"}
+{"time": "2026-10-15T13:20:16.412+00:00", "kind": "link_check", "after_frame": 6085, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:16.414+00:00", "kind": "register_write", "frame": 6259, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "03 30 7d 00 7e 99 7f 99 80 00 81 11 82 00 83 02 84 44 85 00 86 17 87 ac 2c 01 2d e0 04 42 1d 20 1c 00 a4 00 a5 26 aa 00 ab 26 02 18 ae 00 af 7f 3d 00 3e 01 3f f4"}
+{"time": "2026-10-15T13:20:16.416+00:00", "kind": "link_check", "after_frame": 6259, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:16.417+00:00", "kind": "buffer_header", "frame": 6263, "request_type": "40", "request": "04", "value": "0082", "index": "0001", "sent": "00 c0 00 10 00 02 00 00"}
+{"time": "2026-10-15T13:20:16.419+00:00", "kind": "link_check", "after_frame": 6263, "after": "buffer_header", "received": "55"}
+{"time": "2026-10-15T13:20:16.423+00:00", "kind": "bulk_write", "frame": 6267, "endpoint": "02", "length": 512, "sha256": "47a4f0bc51c2a53ed0298d2b2e5e4bfdb0af3a40c5d812cacb470d2934b2d7a2"}
+{"time": "2026-10-15T13:20:16.424+00:00", "kind": "upload_status_read", "frame": 6269, "request_type": "c0", "request": "0c", "value": "008e", "index": "0018", "received": "02", "captured": "02", "differs": false}
+{"time": "2026-10-15T13:20:16.426+00:00", "kind": "buffer_header", "frame": 6271, "request_type": "40", "request": "04", "value": "0082", "index": "0001", "sent": "00 00 01 10 00 02 00 00"}
+{"time": "2026-10-15T13:20:16.428+00:00", "kind": "link_check", "after_frame": 6271, "after": "buffer_header", "received": "55"}
+{"time": "2026-10-15T13:20:16.429+00:00", "kind": "bulk_write", "frame": 6275, "endpoint": "02", "length": 512, "sha256": "47a4f0bc51c2a53ed0298d2b2e5e4bfdb0af3a40c5d812cacb470d2934b2d7a2"}
+{"time": "2026-10-15T13:20:16.431+00:00", "kind": "upload_status_read", "frame": 6277, "request_type": "c0", "request": "0c", "value": "008e", "index": "0018", "received": "02", "captured": "02", "differs": false}
+{"time": "2026-10-15T13:20:16.432+00:00", "kind": "register_write", "frame": 6279, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "0f 01"}
+{"time": "2026-10-15T13:20:16.434+00:00", "kind": "link_check", "after_frame": 6279, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:16.435+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0032, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:16.447+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0151, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:16.462+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0301, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:16.477+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0451, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:16.492+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0601, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:16.507+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0751, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:16.522+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0901, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:16.537+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1051, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:16.552+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1201, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:16.567+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1351, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.582+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1501, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.597+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1651, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.612+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1801, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.627+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1951, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.642+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2101, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.657+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2251, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.672+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2401, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.687+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2551, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.702+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2701, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.717+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2851, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.732+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3001, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.747+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3151, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.762+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3301, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.777+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3451, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.792+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3601, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.807+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3751, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.822+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3901, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.837+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4051, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.852+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4201, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.867+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4351, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.882+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4501, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.897+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4651, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.912+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4801, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.927+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4951, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.942+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5101, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.957+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5251, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.972+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5402, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:16.987+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5551, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.002+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5701, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.017+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5851, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.032+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6001, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.047+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6151, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.062+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6301, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.077+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6451, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.092+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6601, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.107+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6751, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.122+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6901, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.137+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.7051, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.152+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.7201, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.167+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.7351, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.182+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.7501, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.197+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.7651, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.212+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.7801, "0x101": "f5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:17.227+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.7951, "0x101": "f4", "homesnr": false, "motorenb": false}
+{"time": "2026-10-15T13:20:17.228+00:00", "kind": "move_end", "motorenb_cleared_within_limit": true, "cut_sent": false, "motorenb_cleared_after_cut": null, "seconds_since_start": 0.7964}
+{"time": "2026-10-15T13:20:17.229+00:00", "kind": "register_write", "frame": 6287, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "02 08"}
+{"time": "2026-10-15T13:20:17.231+00:00", "kind": "link_check", "after_frame": 6287, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:17.232+00:00", "kind": "register_write", "frame": 77, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "03 00"}
+{"time": "2026-10-15T13:20:17.234+00:00", "kind": "link_check", "after_frame": 77, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:17.235+00:00", "kind": "register_read", "frame": 6327, "register": "0x101", "received": "f0", "captured": "f4", "differs": true}
+{"time": "2026-10-15T13:20:17.238+00:00", "kind": "registers_after", "0x101": "f0", "0x31": "bc", "0x33": "1c", "0x36": "fe", "0x02": "08"}
+{"time": "2026-10-15T13:20:17.239+00:00", "kind": "exit", "code": 0}

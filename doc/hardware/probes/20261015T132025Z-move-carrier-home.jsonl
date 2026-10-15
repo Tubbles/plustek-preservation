@@ -1,0 +1,114 @@
+{"time": "2026-10-15T13:20:25.320+00:00", "kind": "device", "vendor_id": "05e3", "product_id": "0103", "bcd_device": "0702", "steps": 1000, "backscan": false, "poll_limit_seconds": 10.0, "lamp": false, "as_move_1": false, "home": true}
+{"time": "2026-10-15T13:20:25.325+00:00", "kind": "registers_before", "0x101": "f0", "0x31": "bc", "0x33": "1c", "0x36": "fe", "0x02": "08", "0x09": "00"}
+{"time": "2026-10-15T13:20:25.328+00:00", "kind": "register_state_write", "frame": null, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "13 08 16 b7 18 40 20 05 22 06 24 0f 28 00 29 55 2a 8a 31 fc 37 32 52 08 53 0a 54 00 55 02 56 04 57 06 58 07 59 07 5a 11 5b 49 5f 00 61 98 70 02 71 03 72 04 73 05 76 3f 79 3f 7c 3f 88 00 89 00"}
+{"time": "2026-10-15T13:20:25.329+00:00", "kind": "link_check", "after_frame": null, "after": "register_state_write", "received": "55"}
+{"time": "2026-10-15T13:20:25.331+00:00", "kind": "register_state_write", "frame": null, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "8a 00 8b 55 8c 00 8d 00 8e 55 8f 00 90 01 91 54 92 00 a0 0a a2 00 a3 00 ac 00 ad 01 d0 0a d1 0a d2 0a e0 00 e1 c8 e2 15 e3 fb e4 15 e5 fc e6 2b e7 2f e8 2b e9 30 ea 40 eb 63 ec 40 ed 64 ee 55"}
+{"time": "2026-10-15T13:20:25.332+00:00", "kind": "link_check", "after_frame": null, "after": "register_state_write", "received": "55"}
+{"time": "2026-10-15T13:20:25.334+00:00", "kind": "register_state_write", "frame": null, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "ef 97 f0 55 f1 98 f2 6a f3 cb f4 6a f5 cc f6 7f f7 ff f8 05"}
+{"time": "2026-10-15T13:20:25.335+00:00", "kind": "link_check", "after_frame": null, "after": "register_state_write", "received": "55"}
+{"time": "2026-10-15T13:20:25.337+00:00", "kind": "register_write", "frame": 6175, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "51 04 5d 00 5e 2a"}
+{"time": "2026-10-15T13:20:25.338+00:00", "kind": "link_check", "after_frame": 6175, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:25.340+00:00", "kind": "register_write", "frame": 6085, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "33 1c"}
+{"time": "2026-10-15T13:20:25.341+00:00", "kind": "link_check", "after_frame": 6085, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:25.343+00:00", "kind": "register_write", "frame": 6259, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "03 30 7d 00 7e 99 7f 99 80 00 81 11 82 00 83 02 84 44 85 00 86 17 87 ac 2c 01 2d e0 04 42 1d 20 1c 00 a4 00 a5 26 aa 00 ab 26 02 1c ae 00 af 7f 3d 00 3e 03 3f e8"}
+{"time": "2026-10-15T13:20:25.344+00:00", "kind": "link_check", "after_frame": 6259, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:25.345+00:00", "kind": "buffer_header", "frame": 6263, "request_type": "40", "request": "04", "value": "0082", "index": "0001", "sent": "00 c0 00 10 00 02 00 00"}
+{"time": "2026-10-15T13:20:25.347+00:00", "kind": "link_check", "after_frame": 6263, "after": "buffer_header", "received": "55"}
+{"time": "2026-10-15T13:20:25.351+00:00", "kind": "bulk_write", "frame": 6267, "endpoint": "02", "length": 512, "sha256": "47a4f0bc51c2a53ed0298d2b2e5e4bfdb0af3a40c5d812cacb470d2934b2d7a2"}
+{"time": "2026-10-15T13:20:25.352+00:00", "kind": "upload_status_read", "frame": 6269, "request_type": "c0", "request": "0c", "value": "008e", "index": "0018", "received": "02", "captured": "02", "differs": false}
+{"time": "2026-10-15T13:20:25.354+00:00", "kind": "buffer_header", "frame": 6271, "request_type": "40", "request": "04", "value": "0082", "index": "0001", "sent": "00 00 01 10 00 02 00 00"}
+{"time": "2026-10-15T13:20:25.355+00:00", "kind": "link_check", "after_frame": 6271, "after": "buffer_header", "received": "55"}
+{"time": "2026-10-15T13:20:25.356+00:00", "kind": "bulk_write", "frame": 6275, "endpoint": "02", "length": 512, "sha256": "47a4f0bc51c2a53ed0298d2b2e5e4bfdb0af3a40c5d812cacb470d2934b2d7a2"}
+{"time": "2026-10-15T13:20:25.358+00:00", "kind": "upload_status_read", "frame": 6277, "request_type": "c0", "request": "0c", "value": "008e", "index": "0018", "received": "02", "captured": "02", "differs": false}
+{"time": "2026-10-15T13:20:25.360+00:00", "kind": "register_write", "frame": 6279, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "0f 01"}
+{"time": "2026-10-15T13:20:25.361+00:00", "kind": "link_check", "after_frame": 6279, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:25.362+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0032, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.375+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0151, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.389+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0301, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.404+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0451, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.419+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0601, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.434+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0751, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.449+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.0901, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.464+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1051, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.479+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1201, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.494+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1351, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.509+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1501, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.524+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1651, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.539+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1801, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.554+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.1951, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.569+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2101, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.584+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2251, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.599+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2401, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.614+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2551, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.629+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2701, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.644+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.2851, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.659+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3001, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.674+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3151, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.689+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3301, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.705+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3451, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.720+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3601, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.735+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3751, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.750+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.3901, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.764+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4051, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.779+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4201, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.794+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4351, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.809+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4501, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.824+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4651, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.839+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4801, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.854+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.4951, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.869+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5101, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.885+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5251, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.899+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5401, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.914+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5551, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.929+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5701, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.944+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.5851, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.959+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6001, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.974+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6151, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:25.989+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6301, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:26.004+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6451, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:26.019+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6601, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:26.034+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6751, "0x101": "d5", "homesnr": false, "motorenb": true}
+{"time": "2026-10-15T13:20:26.049+00:00", "kind": "poll", "phase": "move", "seconds_since_start": 0.6901, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.052+00:00", "kind": "register_write", "frame": 6287, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "02 0c"}
+{"time": "2026-10-15T13:20:26.053+00:00", "kind": "link_check", "after_frame": 6287, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:26.055+00:00", "kind": "register_write", "frame": 6291, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "3d 00 3e 00 3f 01"}
+{"time": "2026-10-15T13:20:26.056+00:00", "kind": "link_check", "after_frame": 6291, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:26.057+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.6981, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.072+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.7132, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.087+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.7282, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.102+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.7432, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.117+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.7582, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.132+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.7732, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.147+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.7882, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.162+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.8032, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.177+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.8182, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.192+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.8332, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.208+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.8482, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.223+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.8632, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.237+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.8782, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.252+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.8932, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.267+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.9082, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.282+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.9232, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.297+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.9382, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.312+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.9532, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.328+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.9682, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.342+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.9832, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.357+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 0.9982, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.372+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 1.0132, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.387+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 1.0282, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.402+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 1.0432, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.417+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 1.0582, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.432+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 1.0732, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.447+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 1.0882, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.462+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 1.1032, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.477+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 1.1182, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.492+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 1.1332, "0x101": "dd", "homesnr": true, "motorenb": true}
+{"time": "2026-10-15T13:20:26.507+00:00", "kind": "poll", "phase": "after_cut", "seconds_since_start": 1.1482, "0x101": "dc", "homesnr": true, "motorenb": false}
+{"time": "2026-10-15T13:20:26.508+00:00", "kind": "home_reached", "seconds_since_start": 0.6914, "0x101": "dd", "cut_sent": true, "motorenb_cleared_after_cut": true}
+{"time": "2026-10-15T13:20:26.509+00:00", "kind": "register_write", "frame": 6287, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "02 08"}
+{"time": "2026-10-15T13:20:26.511+00:00", "kind": "link_check", "after_frame": 6287, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:26.512+00:00", "kind": "register_write", "frame": 77, "request_type": "40", "request": "04", "value": "0083", "index": "0000", "sent": "03 00"}
+{"time": "2026-10-15T13:20:26.513+00:00", "kind": "link_check", "after_frame": 77, "after": "register_write", "received": "55"}
+{"time": "2026-10-15T13:20:26.514+00:00", "kind": "register_read", "frame": 6327, "register": "0x101", "received": "d8", "captured": "f4", "differs": true}
+{"time": "2026-10-15T13:20:26.519+00:00", "kind": "registers_after", "0x101": "d8", "0x31": "bc", "0x33": "1c", "0x36": "fe", "0x02": "08", "0x09": "00"}
+{"time": "2026-10-15T13:20:26.519+00:00", "kind": "exit", "code": 0}
