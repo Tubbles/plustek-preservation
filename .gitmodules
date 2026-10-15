@@ -1,3 +1,6 @@
 [submodule "pyopticfilm"]
 	path = pyopticfilm
 	url = https://github.com/Tubbles/pyopticfilm.git
+[submodule "engine"]
+	path = engine
+	url = git@github.com:Tubbles/plustek-scanapi.git

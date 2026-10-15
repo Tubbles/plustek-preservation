@@ -23,6 +23,11 @@ Host names, access details and machine specific notes live in `CLAUDE.local.md` 
 - `pyopticfilm/` is a submodule pointing at the fork `Tubbles/pyopticfilm` (remote `origin`, pushes go over SSH; `upstream` is `jboneng/pyopticfilm`). Follow `pyopticfilm/CONTRIBUTING.md` there, not the conventions of this repository.
 - Work on feature branches in the submodule. Commit the updated submodule pointer here only after the submodule commits are pushed to the fork, or the pointer breaks for everyone else.
 
+## Reconstructed engine source (private submodule)
+
+- `engine/` is the submodule `Tubbles/plustek-scanapi`, a private repository (owner's decision 2026-10-15) for the reconstructed source of Plustek's engine (`doc/work/0014-decompiled-code-cleanup.md`). It is derived from the vendor binaries, so it never becomes public and nothing from it is copied into this repository beyond function names and addresses. Cloners of this repository without access to it get an error for this submodule only.
+- Its own `CLAUDE.md` holds the rules for editing it. Commit the updated pointer here only after the submodule commit is pushed.
+
 ## Documentation
 
 - Facts about the hardware go in `doc/hardware/`, protocol knowledge in `doc/protocol/`, research summaries in `doc/research.md`. Each claim carries its source (URL, file and offset in a vendor binary, capture name).

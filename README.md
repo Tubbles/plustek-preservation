@@ -19,6 +19,7 @@ Research phase. See `PLAN.md` for the roadmap and `doc/work/` for individual wor
 | `doc/work/` | Work items with status |
 | `tools/` | Helper scripts (for example the USB watcher that runs on the test Raspberry Pi) |
 | `pyopticfilm/` | Submodule: our fork of [pyopticfilm](https://github.com/jboneng/pyopticfilm), where the OpticFilm 120 driver support is built (see `DESIGN.md`) |
+| `engine/` | Submodule, private: the reconstructed source of Plustek's engine, derived from the vendor binaries and therefore not public (`doc/work/0014-decompiled-code-cleanup.md`). Cloning without access to it fails for this submodule only; everything else works without it |
 | `TODO.md` | Owner's inbox of new requests |
 | `SUGGESTIONS.md` | Ideas that came up during the work |
 
