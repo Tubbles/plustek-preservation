@@ -12,6 +12,10 @@ Branches in the submodule: `main` follows upstream; OpticFilm 120 work happens o
 - No kernel driver claims it, so a user-space driver over libusb needs no kernel work for access. A kernel driver is only on the table if libusb turns out to be insufficient (for example isochronous timing), which nothing points to yet.
 - The test host is a Raspberry Pi 3 (aarch64, 1 GB RAM). The driver must run there, and must not assume a fast machine: a 6x12 frame at the advertised 5300 dpi is about 12500 x 25000 pixels, which at 16 bit for each of R, G, B and infrared is about 2.5 GB.
 
+## Decided: the driver matches the Genesys default identity (2026-10-15)
+
+A unit with the Genesys default identity (`05e3:0103`) is matched explicitly, only together with bcdDevice `0x0702`, so that other Genesys devices are not claimed (`doc/work/0015-pyopticfilm-opticfilm-120.md`). Restoring the Plustek identity on the unit (`doc/work/0007-identity-and-flash.md`) is not a prerequisite for the driver and stays a separate question.
+
 ## Open decisions
 
-- How the driver treats a unit with the Genesys default identity (`05e3:0103`): match it explicitly (only together with bcdDevice `0x0702`), or restore the Plustek identity on the unit first (`doc/work/0007-identity-and-flash.md`).
+None at the moment.
