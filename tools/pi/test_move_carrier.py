@@ -471,11 +471,11 @@ class TableTests(unittest.TestCase):
     def test_feed_block_sets_feedl_big_endian(self):
         self.assertEqual(move_carrier.feed_block(97).sent, bytes.fromhex(FEED_BLOCK_97))
         self.assertEqual(move_carrier.feed_block(97).frame, 6463)
-        for steps, feedl in ((1, "000001"), (980, "0003d4"), (1000, "0003e8")):
+        for steps, feedl in ((1, "000001"), (980, "0003d4"), (1000, "0003e8"), (10158, "0027ae")):
             with self.subTest(steps=steps):
                 self.assertEqual(move_carrier.feed_block(steps).sent[2:8], bytes.fromhex(
                     f"3d{feedl[0:2]} 3e{feedl[2:4]} 3f{feedl[4:6]}"))
-        for steps in (0, -1, 1001, 0x1000000):
+        for steps in (0, -1, 10159, 0x1000000):
             with self.subTest(steps=steps):
                 with self.assertRaises(PermissionError):
                     move_carrier.feed_block(steps)
@@ -760,7 +760,7 @@ class SafetyTests(unittest.TestCase):
     def test_feed_block_must_have_the_steps_of_the_run(self):
         move_carrier.check_allowed(move_carrier.feed_block(500), move_carrier.MovePlan(500, False))
         self.refused(move_carrier.feed_block(97), move_carrier.MovePlan(500, False))
-        for steps in (0, 1001):
+        for steps in (0, 10159):
             with self.subTest(steps=steps):
                 self.refused(move_carrier.LINK_CHECK, move_carrier.MovePlan(steps, False))
 
@@ -832,9 +832,9 @@ class RefusalTests(unittest.TestCase):
 
 class ArgumentTests(unittest.TestCase):
     def test_steps(self):
-        for text, steps in (("1", 1), ("97", 97), ("1000", 1000)):
+        for text, steps in (("1", 1), ("97", 97), ("1000", 1000), ("10158", 10158)):
             self.assertEqual(move_carrier.steps_argument(text), steps)
-        for text in ("0", "-1", "1001"):
+        for text in ("0", "-1", "10159"):
             with self.assertRaises(argparse.ArgumentTypeError):
                 move_carrier.steps_argument(text)
         with self.assertRaises(ValueError):
@@ -856,7 +856,7 @@ class ArgumentTests(unittest.TestCase):
         self.assertEqual((chosen.steps, chosen.backscan, chosen.poll_limit_seconds), (200, True, 4.0))
         with contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):
-                parser.parse_args(["logs", "--steps", "1001"])
+                parser.parse_args(["logs", "--steps", "10159"])
 
     def test_exit_codes(self):
         self.assertEqual((move_carrier.EXIT_GOOD, flash_dump.EXIT_NOT_FOUND, move_carrier.EXIT_USB_ERROR,
@@ -990,7 +990,9 @@ class MoveOneTests(unittest.TestCase):
         self.assertEqual(move_carrier.move_1_block(97).sent,
                          bytes.fromhex(MOVE_1_BLOCK_10158.replace("3d00 3e27 3fae", "3d00 3e00 3f61")))
         self.assertEqual(move_carrier.move_1_block(97).frame, 6259)
-        for steps in (0, 1001, 10158):
+        # The vendor's own FEEDL gives the block of frame 6259 verbatim.
+        self.assertEqual(move_carrier.move_1_block(10158).sent, bytes.fromhex(MOVE_1_BLOCK_10158))
+        for steps in (0, 10159):
             with self.subTest(steps=steps):
                 with self.assertRaises(PermissionError):
                     move_carrier.move_1_block(steps)
