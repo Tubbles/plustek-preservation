@@ -293,13 +293,13 @@ class FakeClock:
         return vendor_open.Environment(sleep=self.sleep, monotonic=self.monotonic, find_device=lambda: self.scanner)
 
 
-def run_move(scanner, clock=None, steps=97, backscan=False, poll_limit_seconds=10.0):
+def run_move(scanner, clock=None, steps=97, backscan=False, poll_limit_seconds=10.0, lamp=False):
     """Run run() and return the exit code and the log records."""
     clock = clock or FakeClock(scanner)
     log_file = io.StringIO()
     with contextlib.redirect_stdout(io.StringIO()):
         exit_code = move_carrier.run(flash_dump.Session(scanner, log_file), clock.environment(), steps, backscan,
-                                     poll_limit_seconds)
+                                     poll_limit_seconds, lamp)
     return exit_code, [json.loads(line) for line in log_file.getvalue().splitlines()]
 
 
@@ -333,6 +333,14 @@ class CaptureTests(unittest.TestCase):
                      for register in set(at_start) | set(at_move_3)
                      if at_start.get(register) != at_move_3.get(register)}
         self.assertEqual(differing, {0x03: (0x00, 0x30)})
+
+    def test_register_state_with_the_lamp_as_captured_matches_the_capture_in_full(self):
+        scanner = FakeScanner()
+        self.assertEqual(run_move(scanner, lamp=True)[0], move_carrier.EXIT_GOOD)
+        start = scanner.transfers.index(write_transfer("0f01"))
+        at_start = replay_register_writes(shadow_of_open(), scanner.transfers[:start + 1])
+        at_move_3 = shadow_of_capture(CAPTURE_PATH, FIRST_FRAME, START_FRAME)
+        self.assertEqual({register: at_start.get(register) for register in at_move_3}, at_move_3)
 
     def test_afe_write_is_frame_6175(self):
         submit = capture_records(CAPTURE_PATH, 6175, 6175)[0]
@@ -467,6 +475,23 @@ class MoveTests(unittest.TestCase):
         scanner = FakeScanner()
         self.assertEqual(run_move(scanner, steps=1000)[0], move_carrier.EXIT_GOOD)
         self.assertEqual(scanner.transfers, run_transfers(feedl_hex="0003e8"))
+
+    def test_lamp_as_captured_writes_0x03_after_the_afe_write_and_switches_it_off_after_motor_power(self):
+        scanner = FakeScanner()
+        exit_code, records = run_move(scanner, lamp=True)
+        self.assertEqual(exit_code, move_carrier.EXIT_GOOD)
+        afe = scanner.transfers.index(write_transfer(move_carrier.AFE_WRITE.sent.hex()))
+        self.assertEqual(scanner.transfers[afe + 2:afe + 4], [write_transfer("0330"), LINK_CHECK_TRANSFER])
+        motor_off = len(scanner.transfers) - 1 - scanner.transfers[::-1].index(write_transfer("0208"))
+        self.assertEqual(scanner.transfers[motor_off + 2:motor_off + 4], [write_transfer("0300"), LINK_CHECK_TRANSFER])
+        self.assertEqual(scanner.transfers.count(write_transfer("0330")), 1)
+        self.assertEqual(scanner.transfers.count(write_transfer("0300")), 1)
+        self.assertEqual(records_of_kind(records, "lamp_write")[0]["sent"], "03 30")
+        without_lamp = FakeScanner()
+        run_move(without_lamp)
+        lamp_transfers_removed = (scanner.transfers[:afe + 2] + scanner.transfers[afe + 4:motor_off + 2]
+                                  + scanner.transfers[motor_off + 4:])
+        self.assertEqual(lamp_transfers_removed, without_lamp.transfers)
 
     def test_polls_every_15_ms_from_the_start_and_logs_each_value(self):
         scanner = FakeScanner(OWNER_UNIT_REGISTERS)
@@ -662,6 +687,13 @@ class SafetyTests(unittest.TestCase):
             with self.subTest(sent=request.sent.hex()):
                 self.refused(request)
                 move_carrier.check_allowed(request, move_carrier.MovePlan(97, True))
+
+    def test_lamp_writes_need_the_flag(self):
+        for request in (move_carrier.LAMP_AS_CAPTURED, move_carrier.LAMP_OFF):
+            with self.subTest(sent=request.sent.hex()):
+                self.refused(request)
+                move_carrier.check_allowed(request, move_carrier.MovePlan(97, False, lamp=True))
+        self.refused(move_carrier.single_write(0, 0x03, 0x10), move_carrier.MovePlan(97, False, lamp=True))
 
     def test_0x33_writes_are_the_fixed_reset_or_change_only_bit_5_of_the_last_read(self):
         move_carrier.check_allowed(move_carrier.REGISTER_33_RESET, move_carrier.MovePlan(97, False))

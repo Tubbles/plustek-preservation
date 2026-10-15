@@ -26,7 +26,12 @@ Sequence:
    0x5e = 0x2a, the last AFE write before move 3. test_move_carrier.py
    rebuilds the table from the capture and checks that the register state
    at the start write then differs from the capture's only in 0x03: the
-   lamp stays off, while the vendor's move 3 ran with 0x03 = 0x30. Not in
+   lamp stays off, while the vendor's move 3 ran with 0x03 = 0x30. With
+   --lamp-as-captured the tool writes 0x03 = 0x30 after the AFE write, so
+   that the state matches the capture in full, and 0x03 = 0x00 (frame 77
+   of the open) after the last write of step 7. The first run without
+   it, 2026-10-15 07:21 UTC, ran the step engine with the capture's
+   timing but moved nothing (doc/log/2026-10-15.md). Not in
    the table: 0x0d and 0x0f (commands), and 0x02, 0x0a, 0x09, 0x33 and
    the 19 registers of the block at frame 6463, which steps 4 to 7 write.
    REGISTER_STATE writes 0x37 = 0x32 (the open leaves 0x30), which drives
@@ -119,7 +124,7 @@ SLOPE_TABLE_SHA256 (nothing sent).
 
 Usage (on the Pi):
     sudo ~/plustek-preservation/venv/bin/python move_carrier.py LOG_DIRECTORY [--steps N] [--backscan]
-        [--poll-limit-seconds S]
+        [--poll-limit-seconds S] [--lamp-as-captured]
 """
 
 import argparse
@@ -238,6 +243,7 @@ class MovePlan:
     """What a run may send: the command line choices and the value last read from 0x33 for the move."""
     steps: int
     backscan: bool
+    lamp: bool = False
     register_33_read: typing.Optional[int] = None
 
 
@@ -339,6 +345,10 @@ AFTER_WRITE_0X02 = single_write(6631, 0x02, 0x58)
 AFTER_WRITE_0X0A = single_write(6635, 0x0A, 0x48)
 AFTER_READ_0X101 = RegisterRead(6643, STATUS_REGISTER, 0xF4)
 MOTOR_POWER_OFF = single_write(6373, 0x02, 0x08)
+# --lamp-as-captured: 0x03 = 0x30 as the 27-pair block of frame 6259 set it before move 1 (LAMPPWR and bit 5), and
+# 0x03 = 0x00 as frame 77 of the open wrote it, so that the lamp is off again at the end.
+LAMP_AS_CAPTURED = register_write(None, bytes([0x03, 0x30]), kind="lamp_write")
+LAMP_OFF = single_write(77, 0x03, 0x00)
 
 REQUEST_ERRORS = (usb.core.USBError, PermissionError, ShortTransferError, LinkByteError, UnexpectedAnswerError)
 
@@ -362,7 +372,8 @@ def permitted_requests(plan: MovePlan) -> list:
                 BEFORE_WRITE_0X0A, feed_block(plan.steps), *(request for upload in TABLE_UPLOADS for request in upload),
                 START, CUT_MOTOR_POWER, CUT_FEEDL, AFTER_WRITE_0X02, AFTER_WRITE_0X0A, MOTOR_POWER_OFF,
                 *permitted_register_33_writes(plan.register_33_read)]
-    return requests + ([BACKSCAN_SET, BACKSCAN_CLEAR] if plan.backscan else [])
+    requests += [BACKSCAN_SET, BACKSCAN_CLEAR] if plan.backscan else []
+    return requests + ([LAMP_AS_CAPTURED, LAMP_OFF] if plan.lamp else [])
 
 
 def check_allowed(request: Request, plan: MovePlan) -> None:
@@ -467,6 +478,8 @@ def gate_refusal_reasons(registers: dict) -> list:
 def set_register_state(session: Session, plan: MovePlan) -> None:
     for request in (*REGISTER_STATE_WRITES, AFE_WRITE):
         send_write(session, plan, request)
+    if plan.lamp:
+        send_write(session, plan, LAMP_AS_CAPTURED)
 
 
 def prepare_move(session: Session, plan: MovePlan) -> None:
@@ -527,6 +540,8 @@ def finish_move(session: Session, plan: MovePlan) -> None:
     send_write(session, plan, register_33_write(6639, plan.register_33_read & ~REGISTER_33_MOVE_BIT & 0xFF))
     read_captured_register(session, AFTER_READ_0X101)
     send_write(session, plan, MOTOR_POWER_OFF)
+    if plan.lamp:
+        send_write(session, plan, LAMP_OFF)
 
 
 def run_motor(session: Session, environment: Environment, plan: MovePlan, poll_limit_seconds: float) -> bool:
@@ -564,13 +579,14 @@ def tables_match_hash(uploads: tuple) -> bool:
 
 
 def run(session: Session, environment: Environment, steps: int = DEFAULT_STEPS, backscan: bool = False,
-        poll_limit_seconds: float = DEFAULT_POLL_LIMIT_SECONDS) -> int:
+        poll_limit_seconds: float = DEFAULT_POLL_LIMIT_SECONDS, lamp: bool = False) -> int:
     """move() after the table check, with errors logged and mapped to an exit code."""
     if not tables_match_hash(TABLE_UPLOADS):
         log(session, {"kind": "refused", "reason": f"a table payload's SHA-256 is not {SLOPE_TABLE_SHA256}"})
         exit_code = EXIT_TABLE_HASH
     else:
-        exit_code = move_with_errors_logged(session, environment, MovePlan(steps, backscan), poll_limit_seconds)
+        exit_code = move_with_errors_logged(session, environment, MovePlan(steps, backscan, lamp),
+                                            poll_limit_seconds)
     log(session, {"kind": "exit", "code": exit_code})
     return exit_code
 
@@ -652,6 +668,9 @@ def argument_parser() -> argparse.ArgumentParser:
                              "BACKSCAN move that starts off the home sensor")
     parser.add_argument("--poll-limit-seconds", type=poll_limit_argument, default=DEFAULT_POLL_LIMIT_SECONDS,
                         help=f"cut the move after this long (default {DEFAULT_POLL_LIMIT_SECONDS:g})")
+    parser.add_argument("--lamp-as-captured", dest="lamp", action="store_true",
+                        help="also write 0x03 = 0x30 (lamp on) before the move, as the capture's move 3 ran, and "
+                             "0x03 = 0x00 at the end, so that the register state matches the capture in full")
     return parser
 
 
@@ -675,8 +694,9 @@ def main() -> int:
         log(session, {"kind": "device", "vendor_id": f"{device.idVendor:04x}",
                       "product_id": f"{device.idProduct:04x}", "bcd_device": f"{device.bcdDevice:04x}",
                       "steps": arguments.steps, "backscan": arguments.backscan,
-                      "poll_limit_seconds": arguments.poll_limit_seconds})
-        return run(session, Environment(), arguments.steps, arguments.backscan, arguments.poll_limit_seconds)
+                      "poll_limit_seconds": arguments.poll_limit_seconds, "lamp": arguments.lamp})
+        return run(session, Environment(), arguments.steps, arguments.backscan, arguments.poll_limit_seconds,
+                   arguments.lamp)
 
 
 if __name__ == "__main__":
