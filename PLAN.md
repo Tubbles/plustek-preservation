@@ -4,6 +4,8 @@
 
 The owner can scan 35 mm and 120 film on Linux with the OpticFilm 120, at full quality (full resolution, 16-bit per channel, infrared channel for dust removal), through a maintained open source user-space driver. Secondary: the knowledge gathered (protocol, hardware, calibration) is documented well enough that someone else could maintain or port the driver.
 
+Second goal (owner, 2026-10-15): SilverFast Ai Studio 8, the front end bundled with the scanner, working on Linux, through Wine, a Windows guest on the Linux desktop, or a replacement of Plustek's engine library on top of the open driver. The options and their state are in `doc/work/0016-silverfast-on-linux.md`.
+
 ## Phases
 
 ### 1. Research
