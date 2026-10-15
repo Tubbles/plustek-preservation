@@ -19,6 +19,7 @@ Requirements: Ghidra 12.1.4 in `work/tools/ghidra_12.1.4_PUBLIC/` (headless laun
 | `register_fields.py` | facts file, class, optional `--diff <class>` | Markdown field table, or the differences between two classes |
 | `find_descriptor_bytes.py` | files | offsets of USB descriptor headers, VID/PID pairs and product strings |
 | `find_code_references.py` | 64-bit PE file, target addresses | for each target, `E8`/`E9` relative calls and jumps to it at any byte offset of the code sections, and every 64-bit pointer or 32-bit RVA holding it, with the section |
+| `macho_source_map.py` | Mach-O x86_64 slice, output file | TSV with every function's address, mangled symbol, compile unit, the included file that holds its body and the object file, from the STAB debugging entries (`N_SO`, `N_OSO`, `N_SOL`, `N_FUN`) the macOS engine keeps |
 
 `ExtractAccessorFacts.java` and `ListCallsWithConstants.java` read the decompiler's P-code rather than its C text, because the C output prints small constants (register numbers, offsets) as fields of the Mach-O header, which Ghidra maps at address 0.
 
@@ -57,6 +58,9 @@ python3 -I tools/ghidra/register_fields.py work/re/accessor-facts-x86_64.jsonl C
 python3 -I tools/ghidra/register_fields.py work/re/accessor-facts-x86_64.jsonl CGL126 --diff CGL128
 
 python3 -I tools/ghidra/find_descriptor_bytes.py work/re/slices/ScanApi.x86_64 work/re/slices/ScanApi.arm64
+
+# Which source file each function came from (the authors' file split, for the reconstruction of work item 0014).
+python3 -I tools/ghidra/macho_source_map.py work/re/slices/ScanApi.x86_64 work/re/source-map-x86_64.tsv
 ```
 
 ## Windows engine
