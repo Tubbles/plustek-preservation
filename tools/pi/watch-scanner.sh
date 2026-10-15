@@ -9,6 +9,11 @@
 # Before the probe, keep_awake.py drives the standby line high on each
 # appearance, but only while ~/plustek-preservation/keep-awake-enabled
 # exists (its docstring says on which board revision that is safe).
+# Then vendor_open.py replays the vendor's open sequence, which keeps the
+# unit on the bus (doc/hardware/usb.md, "Standby"), but only while
+# ~/plustek-preservation/open-enabled exists and the probe is disabled
+# (the owner's standing permission of 2026-10-15, CLAUDE.md). Its own
+# gate refuses the run unless the carrier is at home with the motor idle.
 #
 # Usage: watch-scanner.sh [vendor:product] [log directory]
 vendor_product="${1:-05e3:0103}"
@@ -19,6 +24,8 @@ venv_python="$project_directory/venv/bin/python"
 probe_disabled="$project_directory/probe-disabled"
 keep_awake_script="$project_directory/keep_awake.py"
 keep_awake_enabled="$project_directory/keep-awake-enabled"
+open_script="$project_directory/vendor_open.py"
+open_enabled="$project_directory/open-enabled"
 mkdir -p "$log_directory"
 present=0
 while true; do
@@ -32,6 +39,12 @@ while true; do
                 sudo -n "$venv_python" "$keep_awake_script" "$log_directory/keep-awake-$stamp.jsonl" \
                     > /dev/null 2>> "$log_directory/events.log"
                 echo "$stamp keep awake exit $?" >> "$log_directory/events.log"
+            fi
+            if [ -f "$open_enabled" ] && [ -f "$probe_disabled" ] && [ -f "$open_script" ] \
+                && [ -f "$project_directory/flash_dump.py" ] && [ -x "$venv_python" ]; then
+                sudo -n "$venv_python" "$open_script" "$log_directory/vendor-open" --watch-seconds 0 \
+                    > /dev/null 2>> "$log_directory/events.log"
+                echo "$stamp open exit $?" >> "$log_directory/events.log"
             fi
             if [ -f "$probe_disabled" ]; then
                 echo "$stamp probe disabled" >> "$log_directory/events.log"
